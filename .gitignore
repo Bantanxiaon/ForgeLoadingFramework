@@ -1,0 +1,11 @@
+work/
+audit/
+dist/
+__pycache__/
+*.pyc
+*.log
+*.args
+*.exe
+*.mp4
+*.zip
+.env

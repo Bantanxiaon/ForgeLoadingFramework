@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+[[mods]]
+modId="shanghanearlyloading"
+version="0.3.0"
+displayName="Forge Loading Framework"
+description="Independent streaming early loading provider and client loading overlay."
+[[dependencies.shanghanearlyloading]]
+modId="forge"
+mandatory=true
+versionRange="[47.3.22,47.3.34)"
+ordering="NONE"
+side="CLIENT"
+[[dependencies.shanghanearlyloading]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.20.2)"
+ordering="NONE"
+side="CLIENT"

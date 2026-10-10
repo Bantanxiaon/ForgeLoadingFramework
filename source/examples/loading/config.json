@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "maximized": true,
+  "independentWindow": true,
+  "video": "video/loading.mp4",
+  "audio": true,
+  "audioFile": "",
+  "font": "",
+  "logo": "images/logo.png",
+  "fallback": "images/fallback.png",
+  "ffmpeg": "bin/ffmpeg.exe",
+  "width": 640,
+  "height": 360,
+  "fps": 30,
+  "queueFrames": 3,
+  "volume": 0.8,
+  "fadeInMs": 0,
+  "fadeOutMs": 450,
+  "title": "",
+  "subtitle": "正在初始化游戏内容，请勿关闭游戏",
+  "ui": {
+    "background": "#0C1713",
+    "dimBackground": true,
+    "shadeOpacity": 0.86,
+    "maxTasks": 3,
+    "taskSpacing": 25,
+    "title": {
+      "text": "${packName}",
+      "font": "",
+      "size": 36,
+      "weight": "bold",
+      "color": "#FFFFFF",
+      "opacity": 1,
+      "anchor": "top-left",
+      "x": "50",
+      "y": "440"
+    },
+    "subtitle": {
+      "text": "${subtitle}",
+      "size": 19,
+      "x": "50",
+      "y": "481"
+    },
+    "status": {
+      "text": "当前正在加载：${stage}",
+      "size": 23,
+      "weight": "bold",
+      "x": "50",
+      "y": "516"
+    },
+    "tasks": {
+      "size": 19,
+      "x": "50",
+      "y": "551"
+    },
+    "mods": {
+      "text": "${modCount}",
+      "size": 15,
+      "x": "50",
+      "y": "618"
+    },
+    "percent": {
+      "text": "${stagePercent}",
+      "size": 23,
+      "weight": "bold",
+      "x": "1150",
+      "y": "640"
+    },
+    "logo": {
+      "x": "50",
+      "y": "300",
+      "width": "96",
+      "height": "96",
+      "opacity": 1
+    },
+    "progress": {
+      "x": "50",
+      "y": "647",
+      "width": "1080",
+      "height": "10",
+      "radius": 10,
+      "color": "#A9DDAE",
+      "background": "#FFFFFF37",
+      "opacity": 1
+    }
+  }
+}

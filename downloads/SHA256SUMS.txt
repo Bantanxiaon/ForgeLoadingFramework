@@ -1,0 +1,2 @@
+c0960c9a20a99b54a72544ad514e92f57666ed382506288ec61b0bded329a597  ForgeLoadingFramework-bootstrap-0.3.0.jar
+e9cf3b1ed97c86da5f9461101dc7a9ac401060257956e3b8a5485168ed9ed7de  ForgeLoadingFramework-0.3.0.jar
