@@ -1,0 +1,35 @@
+name: Publish complete Windows bundle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - author-release.json
+      - release.json
+      - source/package_release.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-bundle
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build, verify and publish
+        shell: cmd
+        run: python -B source/package_release.py --jdk "%JAVA_HOME%" --publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONUTF8: '1'

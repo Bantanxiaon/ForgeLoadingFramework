@@ -4,9 +4,11 @@ Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 �
 
 启动时播放外部 H.264 MP4 / AAC 音频，显示加载任务和单一总进度，完成后渐隐进入游戏原主菜单。整合包标题自动读取元数据或实例名称，更换视频不需要重新编译。
 
-作者工具已更新至 0.4.1，游戏组件仍为 0.4.0。[作者使用教程](docs/作者使用教程.md) 包含文字样式、字体、布局和自动标题的具体步骤。
+作者工具已更新至 0.4.1，游戏组件仍为 0.4.0。下面的使用教程包含文字样式、字体、布局和自动标题的具体步骤。
 
 完整工具包用于直接接入整合包，包含作者工具、两份游戏 Jar、配置模板和教程；公开包使用单独生成的演示视频，不包含整合包的原视频素材。
+
+[下载完整工具包](https://github.com/Bantanxiaon/ForgeLoadingFramework/releases/latest) · [单独阅读教程](docs/作者使用教程.md)
 
 ## 安装
 
@@ -21,6 +23,225 @@ Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 �
 Bootstrap 是早期服务库，普通 Mod 列表可能只显示客户端组件。没有额外前置 Mod；FFmpeg 是外部播放器依赖。作者工具无需安装进游戏。
 
 不修改 Forge/PCL 本体，不需要私有启动器，不依赖开发会话。源码仓库不包含 Minecraft、Java、第三方播放器二进制或视频素材；完整工具包另包含便携 Java 和 FFmpeg。
+
+## 使用教程
+
+### 1. 安装到实例
+
+解压工具包，双击作者工具文件夹里的 ForgeLoadingAuthor.exe，点击“选择实例”。可以选择整合包外层、.minecraft、versions，或者 versions 下面实际的实例目录。
+
+整合包外层需要包含 .minecraft/versions 等已安装的游戏目录。自定义实例目录需要有与文件夹同名的版本 JSON，并包含受支持的 Forge 信息。找到多个实例时，按完整路径和 Forge 版本选择目标。取消会保留原来的选择。
+
+不要选择盘符根目录。尚未安装的导入 ZIP 请先拖进 PCL 安装；作者工具不会扫描整个硬盘。
+
+选择视频，保留“兼容优先 · 640×360”，点击“安装 / 更新”。完成后重新打开 PCL，启动该实例。
+
+### 2. 找到配置
+
+~~~text
+实例文件夹/
+├─ mods/
+│  ├─ ForgeLoadingFramework-bootstrap-0.4.0.jar
+│  └─ ForgeLoadingFramework-0.4.0.jar
+├─ config/fml.toml
+└─ loading/
+   ├─ config.json
+   ├─ video/loading.mp4
+   ├─ fonts/
+   ├─ images/
+   └─ bin/ffmpeg.exe
+~~~
+
+作者工具不用放进 mods。两份游戏 Jar 配套保留。
+
+旧版 config/shanghan_loading 仍可读取；如果 loading 已存在，会优先读取 loading。不要两处都改。下文的 config.json 指实际使用的素材目录中的文件。
+
+改配置前退出游戏，另存备份，用支持 UTF-8 的文本编辑器打开。JSON 不能写注释，最后一项后面不能多逗号。下面标明“片段”的示例只修改对应字段，不要覆盖整份文件。
+
+### 3. 换视频、改音量
+
+在作者工具中选择实例和新视频，点击“替换视频”。兼容优先输出 640×360、30 FPS、H.264，有音轨时转成 AAC，旧视频会备份。
+
+也可以直接替换 loading/video/loading.mp4，但文件必须是可解码的视频，不能只改后缀。高分辨率素材建议先通过工具转码。
+
+| 顶层字段 | 示例 | 作用 |
+| --- | --- | --- |
+| video | "video/loading.mp4" | 视频文件 |
+| audio | true | 是否播放音频 |
+| audioFile | "" | 空值使用视频音轨；也可指定独立音频 |
+| volume | 0.8 | 音量，0 到 1 |
+| width / height | 640 / 360 | 解码输出尺寸，画面仍随窗口缩放 |
+| fps | 30 | 目标帧率，30 到 60 |
+| fadeOutMs | 450 | 结束渐隐时间，单位毫秒 |
+
+素材路径相对于 loading，例如 fonts/pack.ttf。不要填写自己电脑上的绝对路径，否则换电脑会找不到文件。
+
+### 4. 自动标题怎样读名称
+
+保留顶层 title 为空，ui.title.text 写为 ${packName}。配置位置示意：
+
+~~~json
+{
+  "title": "",
+  "ui": {
+    "title": {
+      "text": "${packName}"
+    }
+  }
+}
+~~~
+
+这是片段。程序按以下顺序找名称，找到非空名称就停止：
+
+1. 游戏目录下 modrinth.index.json 的 name。
+2. 游戏目录下 manifest.json 的 name。
+3. 启动参数 --version 后面的实例名称。
+4. 游戏目录的最后一级文件夹名。
+
+例如游戏目录是 D:/Minecraft/versions/我的整合包，前面三项都没有名称时，标题读取“我的整合包”。
+
+PCL 通常会传入 --version，因此多数情况下显示启动器中的实例名。它不是始终读取整合包最外层文件夹的名字；元数据里的 name 优先。
+
+要跟随实例名称：title 留空，ui.title.text 保持 ${packName}，通过 PCL 修改实例名称。如果游戏目录仍有上述元数据，还要检查其中 name 是否是旧名。不要只在资源管理器中改 versions 下的文件夹名，否则可能与版本 JSON 文件名不匹配。
+
+想固定一个名字，改顶层字段：
+
+~~~json
+"title": "我的整合包"
+~~~
+
+ui.title.text 仍保持 ${packName}。也能直接把 ui.title.text 写成固定文字，但这个位置就不再显示自动名称。
+
+### 5. 改提示和加载文字
+
+| ui 中的项目 | 对应内容 |
+| --- | --- |
+| title | 大标题 |
+| subtitle | 标题下的提示 |
+| status | 当前加载阶段 |
+| tasks | 当前 Mod 和操作的详细条目 |
+| mods | 已发现的 Mod 数量 |
+| percent | 总进度百分比 |
+
+例如顶层 subtitle 改成：
+
+~~~json
+"subtitle": "正在准备世界，请稍候"
+~~~
+
+ui.subtitle.text 保持 ${subtitle}，就会显示这句话。
+
+text 中可以使用：
+
+| 变量 | 内容 |
+| --- | --- |
+| ${packName} | 自动识别或指定的标题 |
+| ${subtitle} | 顶层 subtitle |
+| ${stage} | 当前阶段 |
+| ${overallPercent} | 总进度，例如 42% |
+| ${modCount} | 已发现的 Mod 数量信息 |
+| ${sourceLabel} | 当前进度来源 |
+
+tasks 的内容由观察到的 Mod 任务生成，不用填写 text，改字体和位置即可。percent 保持 ${overallPercent}；${stagePercent} 是局部阶段数据，不代表总加载进度。
+
+### 6. 改字体、字号、颜色
+
+下面是完整的 ui.title 对象，替换现有 ui 里的 title：
+
+~~~json
+"title": {
+  "text": "${packName}",
+  "font": "fonts/pack.ttf",
+  "size": 40,
+  "weight": "bold",
+  "color": "#FFF3D6",
+  "opacity": 1,
+  "anchor": "top-left",
+  "x": "50",
+  "y": "430",
+  "enabled": true
+}
+~~~
+
+| 字段 | 修改方式 |
+| --- | --- |
+| font | 字体相对路径；空值使用顶层 font，再为空使用系统默认字体 |
+| size | 字号，8 到 180，默认标题 36 |
+| weight | bold 粗体，normal 常规 |
+| color | #RRGGBB，例如 #FFFFFF 是白色 |
+| opacity | 0 到 1；1 完全显示，0.5 半透明 |
+| enabled | true 显示，false 隐藏 |
+
+把字体放进 loading/fonts，文件名与配置一致。字体应不超过 8,000,000 字节，且能被 Java 字体读取器识别；建议先用包含中文的 TTF 测试。文件缺失或读取失败会回到系统默认字体。发包前确认字体允许随包分发。
+
+统一所有文字字体时，顶层 font 填写：
+
+~~~json
+"font": "fonts/pack.ttf"
+~~~
+
+各文字项目的 font 留空。某一处需要另一种字体，再单独填写。
+
+颜色也支持 #RRGGBBAA，末尾两位为透明度，例如 #FFFFFF80 约半透明。它会与 opacity 相乘，一般只改其中一种。
+
+### 7. 改位置和进度条
+
+布局使用 1280×720 设计画布，再随窗口缩放，坐标不是显示器物理像素。x 增大向右，y 增大向下，也能填写百分比。
+
+| anchor | 坐标对应位置 |
+| --- | --- |
+| top-left | 左上角 |
+| top-right | 右上角 |
+| top-center | 顶部中点 |
+| bottom-left | 左下角 |
+| bottom-right | 右下角 |
+| center | 中心 |
+
+标题居中、靠下的片段：
+
+~~~json
+"anchor": "top-center",
+"x": "50%",
+"y": "430"
+~~~
+
+保留 title 的其他字段。左对齐文字过长会截短；居中或右对齐也可能超出画布，需要减小字号或缩短名称。
+
+ui.taskSpacing 为任务行距，默认 25；ui.maxTasks 为最多显示行数，默认 3。增加行数后要给下方文字留位置。
+
+完整的 ui.progress 对象：
+
+~~~json
+"progress": {
+  "x": "50",
+  "y": "647",
+  "width": "1080",
+  "height": "10",
+  "radius": 10,
+  "color": "#A9DDAE",
+  "background": "#FFFFFF37",
+  "opacity": 1,
+  "enabled": true
+}
+~~~
+
+color 是已加载部分，background 是轨道，radius 控制圆角。百分比文字在 ui.percent，需单独移动。
+
+### 8. 遮罩与 Logo
+
+ui.dimBackground 为 false 时关闭底部渐变遮罩。ui.shadeOpacity 控制深浅，0 到 1。它只影响视频上的遮罩，不应使游戏窗口透出桌面。
+
+顶层 logo 指定图片，默认 images/logo.png。位置和大小由 ui.logo 的 x、y、width、height 控制，不需要时设置 ui.logo.enabled 为 false。
+
+### 9. 检查和发包
+
+保存配置，用 PCL 启动同一个实例，检查标题、字体、位置，并等待进入原主菜单。
+
+全部变回默认样式时，先检查 JSON 引号、逗号和括号。字体不对就核对文件名。标题不对按第 4 节核对来源。没有动画，检查是否改到了当前实例使用的素材目录，再查看其中 runtime.log。
+
+发布整合包时，把两个 Jar、loading 文件夹和 fml.toml 的组件设置放进安装包 overrides 的对应位置，保留原 Mod 下载清单。不要带上账户、存档、运行日志或安装备份。
+
+“恢复上次安装”会回退上次写入的组件与配置，视频保留。shanghan_loading_backups 是本地备份目录，不作为玩家端素材分发。
 
 ## 版本与维护
 
