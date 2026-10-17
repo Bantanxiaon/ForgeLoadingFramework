@@ -31,8 +31,8 @@ public final class AuthorDiscoverySmoke {
   Path fabric=root.resolve("fabric");Files.createDirectories(fabric);Files.writeString(fabric.resolve("fabric.json"),"{\"libraries\":[]}");
   Path badConfig=make(root.resolve("badConfig"));Files.createDirectories(badConfig.resolve("loading"));Files.writeString(badConfig.resolve("loading/config.json"),"[]");
   Map<String,String> before=snapshot(root);
-  check(AuthorTool.TOOL_VERSION.equals("0.4.1"),"tool version");
-  check(AuthorTool.VERSION.equals("0.4.0"),"runtime version unchanged");
+  check(AuthorTool.TOOL_VERSION.equals(System.getProperty("author.expectedToolVersion")),"tool version");
+  check(AuthorTool.VERSION.equals(System.getProperty("author.expectedRuntimeVersion")),"runtime version");
   check(AuthorTool.resolveInstance(root.resolve("single")).equals(single),"outer pack");
   check(AuthorTool.resolveInstance(single.getParent().getParent()).equals(single),"minecraft root");
   check(AuthorTool.resolveInstance(single.getParent()).equals(single),"versions root");

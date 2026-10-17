@@ -135,6 +135,9 @@ def main():
     args = parser.parse_args()
     version = json.loads((ROOT / "author-release.json").read_text(encoding="utf-8"))["version"]
     runtime = json.loads((ROOT / "release.json").read_text(encoding="utf-8"))["version"]
+    author_profile = json.loads((ROOT / "author-release.json").read_text(encoding="utf-8"))
+    if author_profile["runtimeVersion"] != runtime:
+        raise RuntimeError("Author tool must embed the current runtime version")
     if runtime != "0.4.2":
         raise RuntimeError("Update the reviewed runtime hashes before releasing another runtime")
     dist = ROOT / "dist"
