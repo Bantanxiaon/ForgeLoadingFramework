@@ -1,4 +1,4 @@
-# 安装说明：0.4.0
+# 安装说明：游戏组件 0.4.0 / 作者工具 0.4.1
 
 适用 Windows；Minecraft/Forge 与 Java 对应关系见 README。请在副本中接入并备份原配置。
 
@@ -27,9 +27,9 @@
 
 ## 更换视频
 
-直接替换 loading/video/loading.mp4，文件名不变即可。默认解码输出 640×360、30 FPS。作者工具提供“导入视频”，自动转码 H.264、AAC、30 FPS，并备份旧文件；也可修改配置选择其他尺寸。
+直接替换 loading/video/loading.mp4，文件名不变即可。默认解码输出 640×360、30 FPS。作者工具提供“替换视频”，自动转码 H.264、AAC、30 FPS，并备份旧文件；也可修改配置选择其他尺寸。
 
-ForgeLoadingAuthor 便携版带独立 Java，双击运行后选择实例目录。Jar 版需要 Java 17 或更高。工具可安装、转码和还原；安装写入两个 mods 文件和 fml 配置，不修改正常 Forge 版本 JSON。升级旧 library 方式时，只清理本组件以前的专属注册。还原会保留备份与迁移后的文件以便回退。
+ForgeLoadingAuthor 便携版带独立 Java，双击运行后可选整合包外层、.minecraft、versions 或实际实例；多个结果需要选择目标。Jar 版需要 Java 17 或更高。工具可安装、转码和还原；安装写入两个 mods 文件和 fml 配置，不修改正常 Forge 版本 JSON。升级旧 library 方式时，只清理本组件以前的专属注册。还原会保留备份与迁移后的文件以便回退。
 
 ## 整合包安装 ZIP
 
@@ -39,6 +39,8 @@ CurseForge / Modrinth 安装包中，以上文件放进 overrides 对应位置�
 
 通过 PCL 启动，确认动画正常显示，结束后进入原主菜单。只出现 PCL“启动成功”提示不能代替这两步观察。loading/runtime.log 可协助排查，正常结束会记录 OVERLAY_CLOSED。安装阶段的 Forge 下载 SSL EOF 发生在组件运行之前，应检查启动器下载连接。
 
-## Forge 49.0.2 的库目录
+## PCL 与 Forge 49.0.2 的库目录
 
-PCL 启动 Minecraft 1.20.3 / Forge 49.0.2 时，若出现 Library directory: libraries does not exist，可通过实例标准 JVM 参数 -DlibraryDirectory 指定实际 Minecraft libraries 目录。目录应属于当前安装，不要把开发机绝对路径写入整合包。此设置属于启动器与 Forge 的支持库定位配置。
+本次 1.20.3 测试中，PCL 生成的 Forge 49.0.2 启动配置找不到 libraries；移除动画两个 Jar 后仍出现同样异常。该实例通过标准 JVM 参数 -DlibraryDirectory 指向实际 Minecraft libraries 目录后继续测试。此项属于该启动组合的配置前提，不能把它算成动画组件本身的自动修复；不要把测试机绝对路径写进分发包。
+
+文字样式与自动标题见 [作者使用教程](docs/作者使用教程.md)。

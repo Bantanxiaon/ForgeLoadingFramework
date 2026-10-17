@@ -4,19 +4,23 @@ Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 �
 
 启动时播放外部 H.264 MP4 / AAC 音频，显示加载任务和单一总进度，完成后渐隐进入游戏原主菜单。整合包标题自动读取元数据或实例名称，更换视频不需要重新编译。
 
+作者工具已更新至 0.4.1，游戏组件仍为 0.4.0。[作者使用教程](docs/作者使用教程.md) 包含文字样式、字体、布局和自动标题的具体步骤。
+
+完整工具包用于直接接入整合包，包含作者工具、两份游戏 Jar、配置模板和教程；公开包使用单独生成的演示视频，不包含整合包的原视频素材。
+
 ## 安装
 
-从 [downloads](downloads/README.md) 获取两个同版本文件，放进实例 mods，素材和播放器放进 loading。详细步骤见 [INSTALL.md](INSTALL.md)。
+将两个同版本文件放进实例 mods，素材和播放器放进 loading。详细步骤见 [INSTALL.md](INSTALL.md)。
 
 | 文件 | 用途 |
 | --- | --- |
 | ForgeLoadingFramework-bootstrap-0.4.0.jar | 早期窗口服务、版本路由、视频、音频和进度 |
 | ForgeLoadingFramework-0.4.0.jar | Forge 客户端 Mod、资源加载与菜单交接 |
-| ForgeLoadingAuthor-0.4.0.jar | 可选作者工具，安装、转码、备份与还原 |
+| ForgeLoadingAuthor-0.4.1.jar | 可选作者工具，安装、转码、备份与还原 |
 
 Bootstrap 是早期服务库，普通 Mod 列表可能只显示客户端组件。没有额外前置 Mod；FFmpeg 是外部播放器依赖。作者工具无需安装进游戏。
 
-不修改 Forge/PCL 本体，不需要私有启动器，不依赖开发会话。仓库不包含 Minecraft、Java、第三方播放器二进制或视频素材。
+不修改 Forge/PCL 本体，不需要私有启动器，不依赖开发会话。源码仓库不包含 Minecraft、Java、第三方播放器二进制或视频素材；完整工具包另包含便携 Java 和 FFmpeg。
 
 ## 版本与维护
 
@@ -30,7 +34,7 @@ Bootstrap 是早期服务库，普通 Mod 列表可能只显示客户端组件�
 
 共用媒体、配置和进度核心；窗口入口分为旧 GLFW、带后端参数的 GLFW、SDL 三类，后端选择接口另做探测。资源加载桥接保留旧接口路径，并为较新游戏生成本组件自己的 LoadingOverlay 子类，不修改游戏或 Forge 类。新 Minecraft 改动接口时仍可能需要补充适配，路由不能免除未来维护。
 
-不同整合包、显卡和第三方加载界面仍需分别验证。Vulkan、Linux 和 macOS 未作为完整游戏实测支持范围。
+纯净版验证不等于所有整合包、显卡、第三方覆盖界面均已验证。Vulkan、Linux 和 macOS 未作为完整游戏实测支持范围。
 
 ## 配置和性能
 

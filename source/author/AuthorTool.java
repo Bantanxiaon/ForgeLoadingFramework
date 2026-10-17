@@ -6,6 +6,8 @@ public final class AuthorTool{
  static final JsonObject PROFILE=profile();
  static JsonObject profile(){try{return JsonParser.parseString(new String(resource("/runtime.json"),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();}catch(IOException e){throw new IllegalStateException(e);}}
  static final String VERSION=PROFILE.get("version").getAsString(),CLIENT="ForgeLoadingFramework-"+VERSION+".jar",BOOT="ForgeLoadingFramework-bootstrap-"+VERSION+".jar",COORD="shanghan:earlyboot:"+VERSION,LIB="shanghan/earlyboot/"+VERSION+"/earlyboot-"+VERSION+".jar";
+ static final String TOOL_VERSION=toolVersion();
+ static String toolVersion(){try{return new String(resource("/author-version.txt"),java.nio.charset.StandardCharsets.UTF_8).trim();}catch(IOException ignored){return VERSION;}}
  static final Gson GSON=new GsonBuilder().setPrettyPrinting().create();
  static final Path HOME=home();
  static volatile Process transcode;
@@ -15,11 +17,68 @@ public final class AuthorTool{
  static void write(Path path,JsonObject data)throws IOException{Files.createDirectories(path.getParent());Files.writeString(path,GSON.toJson(data));}
  static byte[] resource(String path)throws IOException{try(InputStream in=AuthorTool.class.getResourceAsStream(path)){if(in==null)throw new IOException("缺少工具资源："+path);return in.readAllBytes();}}
  static String hash(byte[] bytes,String algorithm)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance(algorithm).digest(bytes));}
- static Path version(Path instance){return instance.resolve(instance.getFileName()+".json");}
+ static Path version(Path instance)throws IOException{
+  if(instance==null||instance.getFileName()==null)throw new IOException("请选择整合包文件夹或实际游戏实例，不要选择盘符根目录。");
+  return instance.resolve(instance.getFileName()+".json");
+ }
+ static java.util.List<Path> childDirectories(Path directory,int limit)throws IOException{
+  if(!Files.isDirectory(directory,LinkOption.NOFOLLOW_LINKS))return java.util.List.of();
+  try(var stream=Files.list(directory)){
+   var result=stream.filter(f->Files.isDirectory(f,LinkOption.NOFOLLOW_LINKS)).sorted().limit(limit+1L).toList();
+   if(result.size()>limit)throw new IOException("文件夹中子目录过多，请选择更接近游戏实例的目录。");
+   return result;
+  }
+ }
+ static void scanLayout(Path base,java.util.Set<Path> candidates)throws IOException{
+  if(!Files.isDirectory(base,LinkOption.NOFOLLOW_LINKS))return;
+  candidates.add(base);
+  candidates.addAll(childDirectories(base.resolve("versions"),256));
+  if(base.getFileName()!=null&&base.getFileName().toString().equalsIgnoreCase("versions"))
+   candidates.addAll(childDirectories(base,256));
+ }
+ static java.util.List<Path> supportedCandidates(java.util.Set<Path> candidates){
+  java.util.List<Path> supported=new ArrayList<>();
+  for(Path path:candidates)try{forge(path);supported.add(path);}catch(IOException ignored){}
+  return java.util.List.copyOf(supported);
+ }
+ /** Read-only, bounded discovery of installed standard Minecraft version JSON layouts. */
+ static java.util.List<Path> discoverInstances(Path raw)throws IOException{
+  if(raw==null)throw new IOException("请先选择整合包或游戏实例。");
+  Path selected=raw.toAbsolutePath().normalize();
+  if(selected.getFileName()==null)throw new IOException("请选择整合包文件夹或实际游戏实例，不要选择盘符根目录。");
+  if(!Files.isDirectory(selected,LinkOption.NOFOLLOW_LINKS))throw new IOException("所选文件夹不存在或不是普通目录。");
+  try{forge(selected);return java.util.List.of(selected);}catch(IOException invalidDirect){
+   if(Files.isRegularFile(version(selected),LinkOption.NOFOLLOW_LINKS))throw invalidDirect;
+  }
+  java.util.Set<Path> candidates=new LinkedHashSet<>();
+  for(Path base:java.util.List.of(selected,selected.resolve(".minecraft"),selected.resolve("minecraft")))
+   scanLayout(base,candidates);
+  var found=supportedCandidates(candidates);
+  if(!found.isEmpty())return found;
+  var skip=java.util.Set.of("mods","libraries","assets","config","loading","shanghan_loading_backups","java","pcl","logs","resourcepacks","saves","bin","tools");
+  for(Path child:childDirectories(selected,128)){
+   if(skip.contains(child.getFileName().toString().toLowerCase(Locale.ROOT)))continue;
+   for(Path base:java.util.List.of(child,child.resolve(".minecraft"),child.resolve("minecraft")))scanLayout(base,candidates);
+  }
+  found=supportedCandidates(candidates);
+  if(found.isEmpty())throw new IOException("未找到已安装且受支持的 Forge 实例。请选择包含 .minecraft/versions 的整合包文件夹，或实际实例目录；尚未安装的导入包请先用启动器安装。");
+  return found;
+ }
+ static Path resolveInstance(Path raw)throws IOException{
+  var candidates=discoverInstances(raw);
+  if(candidates.size()!=1)throw new IOException("找到多个 Forge 实例，请指定实际实例目录："+candidates);
+  return candidates.get(0);
+ }
  static String forge(Path instance)throws IOException{
-  if(instance.getParent()==null||!instance.getParent().getFileName().toString().equals("versions"))
-   throw new IOException("请选择 .minecraft/versions 下的实例目录。");
-  JsonObject data=json(version(instance));String mc="",forge="";
+  if(instance==null||!Files.isDirectory(instance,LinkOption.NOFOLLOW_LINKS))throw new IOException("游戏实例目录不存在。");
+  Path metadata=version(instance);
+  if(!Files.isRegularFile(metadata,LinkOption.NOFOLLOW_LINKS))throw new IOException("所选目录不是已安装的游戏实例，请选择整合包外层目录或实际实例目录。");
+  try{return forgeMetadata(json(metadata));}
+  catch(IOException e){throw e;}
+  catch(RuntimeException e){throw new IOException("实例版本 JSON 无效，请在启动器中检查或重新选择实例。",e);}
+ }
+ static String forgeMetadata(JsonObject data)throws IOException{
+  String mc="",forge="";
   JsonObject arguments=data.has("arguments")?data.getAsJsonObject("arguments"):null;
   JsonArray game=arguments!=null&&arguments.has("game")?arguments.getAsJsonArray("game"):new JsonArray();
   for(int i=0;i+1<game.size();i++)if(game.get(i).isJsonPrimitive()&&game.get(i+1).isJsonPrimitive()){
@@ -38,6 +97,7 @@ public final class AuthorTool{
    mc=detectedMc;forge=detectedForge;
   }
   RuntimeRouter.Selection route=RuntimeRouter.select(mc,forge);
+  if(route==null)throw new IOException("此实例尚无适配：Minecraft "+mc+" / Forge "+forge+"。支持范围为 1.20.1 至 26.3 的已发行 Forge 分支。");
   boolean minimum=true;
   if(forge.startsWith("47.")){String[] parts=forge.split("[.-]");minimum=Integer.parseInt(parts[1])>3||Integer.parseInt(parts[1])==3&&Integer.parseInt(parts[2])>=22;}
   if(route==null||!minimum)throw new IOException("此实例尚无适配：Minecraft "+mc+" / Forge "+forge+"。支持范围为 1.20.1 至 26.3 的已发行 Forge 分支。");
@@ -61,7 +121,7 @@ public final class AuthorTool{
   }catch(IOException ignored){return false;}
  }
  static Path install(Path raw)throws Exception{
-  Path instance=raw.toAbsolutePath().normalize();forge(instance);
+  Path instance=resolveInstance(raw);
   byte[] boot=resource("/payload/"+BOOT),client=resource("/payload/"+CLIENT); // Validate payload before modifying anything.
   Path b=backup(instance,"install");save(version(instance),b,"version.json");save(instance.resolve("config/fml.toml"),b,"fml.toml");save(config(instance).resolve("config.json"),b,"config.json");
   JsonObject manifest=new JsonObject();manifest.addProperty("instance",instance.toString());manifest.addProperty("version",VERSION);
@@ -76,7 +136,7 @@ public final class AuthorTool{
    for(Path file:previous)move(file,b.resolve("mods").resolve(file.getFileName()));
    manifest.addProperty("clientWritten",true);write(b.resolve("backup.json"),manifest);
    Files.write(mods.resolve(BOOT),boot);Files.write(mods.resolve(CLIENT),client);
-   JsonObject data=json(version(instance));JsonArray libs=data.getAsJsonArray("libraries"),updated=new JsonArray();
+   JsonObject data=json(version(instance));JsonArray libs=data.has("libraries")?data.getAsJsonArray("libraries"):new JsonArray(),updated=new JsonArray();
    for(JsonElement entry:libs)if(!entry.getAsJsonObject().get("name").getAsString().startsWith("shanghan:earlyboot:"))updated.add(entry);
    // Normal installations need only two mods. Remove an older Maven injection only when upgrading it.
    if(updated.size()!=libs.size()){data.add("libraries",updated);write(version(instance),data);}
@@ -127,6 +187,7 @@ public final class AuthorTool{
   m.addProperty("restored",true);write(b.resolve("backup.json"),m);
  }
  static Path restore(Path instance)throws Exception{
+  instance=resolveInstance(instance);
   Path root=instance.resolve("shanghan_loading_backups");
   if(!Files.isDirectory(root))throw new IOException("没有安装备份。");
   try(var dirs=Files.list(root)){
@@ -143,7 +204,7 @@ public final class AuthorTool{
   if(!Files.exists(ff))Files.write(ff,resource("/payload/ffmpeg.exe"));return ff;
  }
  static void convert(Path instance,Path input,int width,int height,double volume,Consumer<String> progress)throws Exception{
-  forge(instance);if(!Files.isRegularFile(input))throw new IOException("请先选择视频。");
+  instance=resolveInstance(instance);if(!Files.isRegularFile(input))throw new IOException("请先选择视频。");
   Path dir=config(instance);Files.createDirectories(dir);Path temp=dir.resolve("intro.import-"+UUID.randomUUID()+".mp4");
   java.util.List<String> command=new ArrayList<>(java.util.List.of(decoder().toString(),"-nostdin","-y","-hide_banner","-threads","2","-filter_threads","1","-i",input.toAbsolutePath().toString(),"-map","0:v:0","-map","0:a:0?","-vf","scale="+width+":"+height+":force_original_aspect_ratio=decrease:out_color_matrix=bt709:out_range=tv,pad="+width+":"+height+":(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30","-c:v","libx264","-preset","fast","-crf","20","-pix_fmt","yuv420p","-color_range","tv","-colorspace","bt709","-color_primaries","bt709","-color_trc","bt709","-threads","2","-c:a","aac","-ar","48000","-ac","2","-b:a","128k","-movflags","+faststart","-progress","pipe:1","-nostats",temp.toString()));
   Process process=new ProcessBuilder(command).redirectErrorStream(true).start();transcode=process;StringBuilder diagnostic=new StringBuilder();double duration=0;long last=0;
@@ -176,17 +237,57 @@ public final class AuthorTool{
  static JSpinner volume=new JSpinner(new SpinnerNumberModel(80,0,100,5));static JLabel status=new JLabel("选择整合包和视频，然后点击安装。");static JProgressBar bar=new JProgressBar();
  static final java.util.List<JButton> buttons=new ArrayList<>();
  static JButton button(String text,Runnable action){JButton b=new JButton(text);b.addActionListener(e->action.run());buttons.add(b);return b;}
- static Path instance(){return Path.of(instanceField.getText()).toAbsolutePath().normalize();}
+ static Path instance()throws IOException{
+  if(instanceField.getText().isBlank())throw new IOException("请先选择整合包或游戏实例。");
+  return resolveInstance(Path.of(instanceField.getText()));
+ }
  static JPanel row(String label,JComponent field,JComponent control){JPanel row=new JPanel(new BorderLayout(12,0));row.add(new JLabel(label),BorderLayout.WEST);row.add(field);if(control!=null)row.add(control,BorderLayout.EAST);return row;}
+ static String candidateLabel(Path path){
+  try{return path+" · Forge "+forge(path);}catch(IOException e){return path.toString();}
+ }
+ static Path selectCandidate(java.util.List<Path> candidates,Function<java.util.List<Path>,Path> picker)throws IOException{
+  Path selected=candidates.size()==1?candidates.get(0):picker.apply(candidates);
+  if(selected!=null&&!candidates.contains(selected))throw new IOException("实例选择无效，请重新选择。");
+  return selected;
+ }
+ static Path promptCandidate(java.util.List<Path> candidates){
+  Object[] labels=candidates.stream().map(AuthorTool::candidateLabel).toArray();
+  Object value=JOptionPane.showInputDialog(frame,"找到多个 Forge 实例，请选择要安装动画的实例：","选择游戏实例",JOptionPane.QUESTION_MESSAGE,null,labels,labels[0]);
+  if(value==null)return null;
+  for(int i=0;i<labels.length;i++)if(labels[i].equals(value))return candidates.get(i);
+  return null;
+ }
+ static void applyInstanceSelection(Path selected)throws IOException{
+  String detected=forge(selected);int chosenVolume=80,chosenQuality=0;
+  Path cfg=config(selected).resolve("config.json");
+  if(Files.exists(cfg))try{
+   JsonObject c=json(cfg);
+   if(c.has("volume"))chosenVolume=(int)Math.round(Math.max(0,Math.min(1,c.get("volume").getAsDouble()))*100);
+   if(c.has("width"))chosenQuality=c.get("width").getAsInt()>640?1:0;
+  }catch(RuntimeException e){throw new IOException("此实例的启动动画配置无效，请先检查 config.json。",e);}
+  instanceField.setText(selected.toString());volume.setValue(chosenVolume);quality.setSelectedIndex(chosenQuality);
+  status.setText("Forge "+detected+" · 已识别实例 · 请先退出该实例游戏和启动器。");
+ }
  static void chooseInstance(){
-  JFileChooser chooser=new JFileChooser(HOME.toFile());chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);chooser.setDialogTitle("选择 versions 下的整合包实例目录");
-  if(chooser.showOpenDialog(frame)==JFileChooser.APPROVE_OPTION){
-   instanceField.setText(chooser.getSelectedFile().getAbsolutePath());
-   try{
-    String version=forge(instance());status.setText("Forge "+version+" · 已识别受支持实例 · 请先退出该实例游戏和 PCL。");
-    Path cfg=config(instance()).resolve("config.json");if(Files.exists(cfg)){JsonObject c=json(cfg);if(c.has("volume"))volume.setValue((int)Math.round(c.get("volume").getAsDouble()*100));if(c.has("width"))quality.setSelectedIndex(c.get("width").getAsInt()>640?1:0);}
-   }catch(Exception e){status.setText(e.getMessage());}
-  }
+  JFileChooser chooser=new JFileChooser(HOME.toFile());chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);chooser.setDialogTitle("选择整合包文件夹或已安装的游戏实例");
+  if(chooser.showOpenDialog(frame)!=JFileChooser.APPROVE_OPTION)return;
+  for(JButton button:buttons)button.setEnabled(false);bar.setIndeterminate(true);status.setText("正在查找 Forge 实例…");
+  Path selected=chooser.getSelectedFile().toPath();
+  new SwingWorker<java.util.List<Path>,Void>(){
+   protected java.util.List<Path> doInBackground()throws Exception{return discoverInstances(selected);}
+   protected void done(){
+    bar.setIndeterminate(false);for(JButton button:buttons)button.setEnabled(true);
+    try{
+     Path candidate=selectCandidate(get(),AuthorTool::promptCandidate);
+     if(candidate==null){status.setText("已取消选择，原实例保持不变。");return;}
+     applyInstanceSelection(candidate);
+    }catch(Exception error){
+     Throwable cause=error.getCause()==null?error:error.getCause();
+     status.setText("未选择新实例："+cause.getMessage());
+     JOptionPane.showMessageDialog(frame,cause.getMessage(),"请选择有效实例",JOptionPane.INFORMATION_MESSAGE);
+    }
+   }
+  }.execute();
  }
  static void chooseVideo(){JFileChooser chooser=new JFileChooser(HOME.toFile());chooser.setDialogTitle("选择启动视频");if(chooser.showOpenDialog(frame)==JFileChooser.APPROVE_OPTION)videoField.setText(chooser.getSelectedFile().getAbsolutePath());}
  static void work(Callable action){
@@ -202,7 +303,7 @@ public final class AuthorTool{
   convert(instance,input,q==0?640:1280,q==0?360:720,v,message->SwingUtilities.invokeLater(()->status.setText(message)));
  }
  static void gui(){
-  frame=new JFrame("Forge 启动视频设置 · "+VERSION);frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);frame.setSize(820,360);frame.setLocationRelativeTo(null);
+  frame=new JFrame("Forge 启动视频设置 · "+TOOL_VERSION);frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);frame.setSize(820,360);frame.setLocationRelativeTo(null);
   JPanel panel=new JPanel(new GridLayout(0,1,0,12));panel.setBorder(new EmptyBorder(20,24,20,24));
   panel.add(new JLabel("Minecraft 1.20.1–26.3 · 自动识别 Forge 版本 · 更换视频无需重新编译"));
   instanceField.setEditable(false);videoField.setEditable(false);
