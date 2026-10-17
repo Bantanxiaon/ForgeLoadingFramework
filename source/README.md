@@ -51,3 +51,7 @@ RuntimeRouter 将精确 Minecraft 发行版与 Forge 主版本配对，补丁版
 Windows 视频显示层嵌入实际游戏窗口，父窗口始终不透明。完成后关闭媒体子进程、音频设备、纹理、显示层和监视任务。日志仅用于诊断，不要公开启动器账户或启动命令中的令牌。
 
 源码包 source/tests/fixtures/ForgeLoadingFramework-0.3.3.jar 仅作为 ModMetadataSmoke 复现旧声明错误的负例，不用于安装游戏。实际 Forge66 接口检查及原生检查另需对应官方依赖；日常构建只需 prepare_sdk 获取的 SDK 和旧 Forge libraries。
+
+## 许可范围
+
+新增代码和后续版本采用非商业许可；v0.4.1 及以前已按 MIT 发布的代码保留原授权。具体边界与第三方许可见 [COMMERCIAL-USE.md](../COMMERCIAL-USE.md) 和根目录 LICENSE。

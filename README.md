@@ -1,5 +1,7 @@
 # Forge Loading Framework 0.4.0
 
+**后续新增代码及新版本禁止商业使用。** 采用 PolyForm Noncommercial 1.0.0；v0.4.1 及以前已发布的版本保留原 MIT 授权。[许可范围说明](COMMERCIAL-USE.md)
+
 Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 的已知 Forge 版本族。使用同一对 Jar，根据实际版本和接口选择适配代码，不再为每个 Forge 补丁版本单独发包。
 
 启动时播放外部 H.264 MP4 / AAC 音频，显示加载任务和单一总进度，完成后渐隐进入游戏原主菜单。整合包标题自动读取元数据或实例名称，更换视频不需要重新编译。
@@ -288,4 +290,4 @@ ui.dimBackground 为 false 时关闭底部渐变遮罩。ui.shadeOpacity 控制�
 
 ## 开发
 
-源代码、构建入口和 SDK 隔离说明见 [source/README.md](source/README.md)。源码使用 MIT 许可证，第三方依赖遵循各自许可证，见 LICENSE 和 source/third_party。
+源代码、构建入口和 SDK 隔离说明见 [source/README.md](source/README.md)。新增代码与后续版本采用非商业许可；既有 MIT 代码和第三方依赖保留原许可，见 [许可范围说明](COMMERCIAL-USE.md)、LICENSE 和 source/third_party。
