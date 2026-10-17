@@ -80,6 +80,50 @@ def verify_bundle(path, runtime_hashes):
             if any("TEST_REPORT" in name or "PCL-matrix" in name for name in source.namelist()):
                 raise RuntimeError("Reports in source ZIP")
 
+def existing_release(repository, version, dist):
+    """Keep published bytes intact; repair a filename normalized by GitHub."""
+    result = subprocess.run(
+        ["gh", "api", "repos/" + repository + "/releases/tags/v" + version],
+        capture_output=True, encoding="utf-8", errors="replace")
+    if result.returncode:
+        if "404" in result.stderr:
+            return False
+        raise RuntimeError("Cannot inspect existing release: " + result.stderr)
+    release = json.loads(result.stdout)
+    expected = "ForgeLoadingFramework-" + version + "-Windows-Complete.zip"
+    renamed = False
+    for asset in release["assets"]:
+        if (asset["name"].startswith("ForgeLoadingFramework-" + version + "-")
+                and asset["name"].endswith(".zip")
+                and not asset["name"].endswith("-source.zip") and asset["size"] > 1_000_000):
+            if asset["name"] != expected:
+                run(["gh", "api", "--method", "PATCH",
+                     "repos/" + repository + "/releases/assets/" + str(asset["id"]),
+                     "-f", "name=" + expected, "-f", "label=完整工具包（Windows）"],
+                    stdout=subprocess.DEVNULL)
+                asset["name"] = expected
+                renamed = True
+    if renamed:
+        # A new checksum file uses the downloadable filenames; preserve the original manifest.
+        checksums = dist / "Download-SHA256.txt"
+        lines = []
+        for asset in release["assets"]:
+            if asset["name"].endswith(".zip"):
+                digest = asset.get("digest", "")
+                if not digest.startswith("sha256:"):
+                    raise RuntimeError("Missing server-side asset digest")
+                lines.append(digest.removeprefix("sha256:") + "  " + asset["name"] + "\n")
+        checksums.write_text("".join(lines), encoding="utf-8")
+        run(["gh", "release", "upload", "v" + version, checksums, "--repo", repository])
+        for asset in release["assets"]:
+            if asset["name"] == "SHA256SUMS.txt":
+                run(["gh", "api", "--method", "PATCH",
+                     "repos/" + repository + "/releases/assets/" + str(asset["id"]),
+                     "-f", "label=原始构建校验（下载文件请使用 Download-SHA256.txt）"],
+                    stdout=subprocess.DEVNULL)
+    print("RELEASE_EXISTS_OK", release["html_url"])
+    return True
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
@@ -96,6 +140,8 @@ def main():
     dist = ROOT / "dist"
     work = ROOT / "work/release-bundle"
     dist.mkdir(exist_ok=True)
+    if args.publish and existing_release(os.environ["GITHUB_REPOSITORY"], version, dist):
+        return
     work.mkdir(parents=True, exist_ok=True)
     for name, expected in RUNTIME_HASHES.items():
         artifact = dist / name
@@ -139,7 +185,7 @@ def main():
          "-t", "5", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
          "-movflags", "+faststart", demo])
     source = dist / ("ForgeLoadingFramework-" + version + "-source.zip")
-    bundle = dist / ("ForgeLoadingFramework-" + version + "-完整工具包.zip")
+    bundle = dist / ("ForgeLoadingFramework-" + version + "-Windows-Complete.zip")
     # Refuse to overwrite a previously delivered bundle. Move it aside or recycle it after review.
     if bundle.exists():
         raise RuntimeError("Bundle already exists; preserve it before rebuilding")
