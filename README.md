@@ -14,6 +14,19 @@ Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 �
 
 [下载完整工具包](https://github.com/Bantanxiaon/ForgeLoadingFramework/releases/latest) · [单独阅读教程](docs/作者使用教程.md)
 
+## 下载哪个文件
+
+**要使用启动动画，请下载 [ForgeLoadingFramework-0.4.2-Windows-Complete.zip](https://github.com/Bantanxiaon/ForgeLoadingFramework/releases/download/v0.4.2/ForgeLoadingFramework-0.4.2-Windows-Complete.zip)。**
+
+这是完整工具包，包含作者工具、两份 Mod Jar、播放器依赖、配置模板和教程。下载后先解压，再选择作者工具安装或手动复制安装。
+
+| Releases 中的文件 | 用途 |
+| --- | --- |
+| **ForgeLoadingFramework-0.4.2-Windows-Complete.zip** | **完整使用包，下载这个** |
+| ForgeLoadingFramework-0.4.2-source.zip | 项目源码包，供开发和维护使用 |
+| Source code (zip) / Source code (tar.gz) | GitHub 自动生成的源码快照 |
+| SHA256SUMS.txt | 下载文件的校验信息 |
+
 ## 0.4.2 更新
 
 修正 26.3 播放区域露出内层标题栏和白边的问题：嵌入前同步 SDL 的无边框状态，并保留尺寸跟随。旧版 GLFW 路径也同步关闭播放子窗口装饰，移除额外的原生边框。

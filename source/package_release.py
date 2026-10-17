@@ -121,6 +121,13 @@ def existing_release(repository, version, dist):
                      "repos/" + repository + "/releases/assets/" + str(asset["id"]),
                      "-f", "label=原始构建校验（下载文件请使用 Download-SHA256.txt）"],
                     stdout=subprocess.DEVNULL)
+    notes = ROOT / "docs/releases" / (version + ".md")
+    if notes.is_file():
+        wanted = notes.read_text(encoding="utf-8")
+        if release.get("body", "").replace("\r\n", "\n").strip() != wanted.strip():
+            run(["gh", "release", "edit", "v" + version, "--repo", repository,
+                 "--notes-file", notes])
+            print("RELEASE_NOTES_UPDATED", release["html_url"])
     print("RELEASE_EXISTS_OK", release["html_url"])
     return True
 
