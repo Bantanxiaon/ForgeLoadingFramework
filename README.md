@@ -1,6 +1,6 @@
 # Forge Loading Framework 0.4.0
 
-**其他加载器版本：** [Fabric 版（开发中，查看说明）](docs/Fabric版本说明.md)。Forge 与 Fabric 使用不同的 Mod 文件，请按实例加载器选择。
+**其他加载器版本：** [Fabric 版 · Fabric Loading Framework（开发中）](https://github.com/Bantanxiaon/FabricLoadingFramework)。Forge 与 Fabric 使用不同的 Mod 文件，请按实例加载器选择。
 
 **后续新增代码及新版本禁止商业使用。** 采用 PolyForm Noncommercial 1.0.0；v0.4.1 及以前已发布的版本保留原 MIT 授权。[许可范围说明](COMMERCIAL-USE.md)
 
