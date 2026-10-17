@@ -1,4 +1,4 @@
-# Forge Loading Framework 0.4.0
+# Forge Loading Framework 0.4.2
 
 **其他加载器版本：** [Fabric 版 · Fabric Loading Framework（开发中）](https://github.com/Bantanxiaon/FabricLoadingFramework)。Forge 与 Fabric 使用不同的 Mod 文件，请按实例加载器选择。
 
@@ -8,11 +8,17 @@ Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 �
 
 启动时播放外部 H.264 MP4 / AAC 音频，显示加载任务和单一总进度，完成后渐隐进入游戏原主菜单。整合包标题自动读取元数据或实例名称，更换视频不需要重新编译。
 
-作者工具已更新至 0.4.1，游戏组件仍为 0.4.0。下面的使用教程包含文字样式、字体、布局和自动标题的具体步骤。
+作者工具已更新至 0.4.2，游戏组件为 0.4.2。下面的使用教程包含文字样式、字体、布局和自动标题的具体步骤。
 
 完整工具包用于直接接入整合包，包含作者工具、两份游戏 Jar、配置模板和教程；公开包使用单独生成的演示视频，不包含整合包的原视频素材。
 
 [下载完整工具包](https://github.com/Bantanxiaon/ForgeLoadingFramework/releases/latest) · [单独阅读教程](docs/作者使用教程.md)
+
+## 0.4.2 更新
+
+修正 26.3 播放区域露出内层标题栏和白边的问题：嵌入前同步 SDL 的无边框状态，并保留尺寸跟随。旧版 GLFW 路径也同步关闭播放子窗口装饰，移除额外的原生边框。
+
+原生窗口检查覆盖最大化、还原、缩放与隐藏后重显。
 
 ## 安装
 
@@ -20,9 +26,9 @@ Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 �
 
 | 文件 | 用途 |
 | --- | --- |
-| ForgeLoadingFramework-bootstrap-0.4.0.jar | 早期窗口服务、版本路由、视频、音频和进度 |
-| ForgeLoadingFramework-0.4.0.jar | Forge 客户端 Mod、资源加载与菜单交接 |
-| ForgeLoadingAuthor-0.4.1.jar | 可选作者工具，安装、转码、备份与还原 |
+| ForgeLoadingFramework-bootstrap-0.4.2.jar | 早期窗口服务、版本路由、视频、音频和进度 |
+| ForgeLoadingFramework-0.4.2.jar | Forge 客户端 Mod、资源加载与菜单交接 |
+| ForgeLoadingAuthor-0.4.2.jar | 可选作者工具，安装、转码、备份与还原 |
 
 Bootstrap 是早期服务库，普通 Mod 列表可能只显示客户端组件。没有额外前置 Mod；FFmpeg 是外部播放器依赖。作者工具无需安装进游戏。
 
@@ -68,8 +74,8 @@ earlyWindowProvider = "shanghanearlyloading"
 ~~~text
 实例文件夹/
 ├─ mods/
-│  ├─ ForgeLoadingFramework-bootstrap-0.4.0.jar
-│  └─ ForgeLoadingFramework-0.4.0.jar
+│  ├─ ForgeLoadingFramework-bootstrap-0.4.2.jar
+│  └─ ForgeLoadingFramework-0.4.2.jar
 ├─ config/fml.toml
 └─ loading/
    ├─ config.json

@@ -1,60 +1,24 @@
-# Modern Forge adapter
+# Modern Windows window adapter
 
-This directory contains the SDL window adapter for the Minecraft 26.3 API family.
-It is isolated from the legacy GLFW implementation and contains no Minecraft
-class references. All released adapter classes are compiled with Java 17
-(class-file version 61); Minecraft 26.3 itself requires Java 25.
+Minecraft 26.3 / Forge 66 uses SDL. The isolated SDL provider keeps the video OpenGL drawable inside the game's own Windows window while preserving Minecraft's selected graphics backend.
 
-## Verified official interfaces
+## Borderless embedding
 
-Research baseline: Minecraft 26.3 and Forge 66.0.12.
+Before native attachment, SdlEmbeddedWindow restores the early maximized window and sets SDL_WINDOW_BORDERLESS through SDL's public API. SDL's internal resizable flag stays enabled so WM_NCCALCSIZE follows the live size; NativeFadeSurface removes the actual child caption, resize controls and extended frame edges.
 
-- Provider interface: net.minecraftforge.fml.loading.ImmediateWindowProvider.
-- New handoff: long setupMinecraftWindow(int, int, String, Supplier<Object>).
-- Backend hook: ImmediateWindowProvider selectBackend(String).
-- The other provider methods retain the common Java-only signatures.
-- Window implementation: LWJGL 3.4.3 SDL, not GLFW.
-- Loader: net.minecraftforge:modlauncher:10.2.6.
-- Launch target: forge_client; the old --fml.mcVersion and
-  --fml.forgeVersion command-line options are absent.
-- The loader exposes FMLLoader.versionInfo().mcVersion()/forgeVersion().
-- Modern LoadingModList.getMods() is static; the older
-  FMLLoader.getLoadingModList() method no longer exists.
-- FMLConfig and FMLPaths retain the configuration and game-directory APIs.
-- The game overlay now uses extractRenderState(GuiGraphicsExtractor,int,int,float)
-  and tick(). It no longer exposes the old immediate render(GuiGraphics,...).
-  Game-side rendering must remain isolated behind the common client overlay router.
+These changes run on the window-creation thread under the render lock. The parent game window keeps its normal decorations and opaque framebuffer. Video opacity changes apply to the child drawable.
 
-## Implementation
+GLFW routes use WindowSurface.prepareChild to keep GLFW decoration flags consistent with their native child styles.
 
-SdlWindowProvider owns a video SDL window and a dedicated OpenGL context.
-Minecraft's own selected backend creates its separate SDL game window.
-NativeFadeSurface attaches the video HWND as a child of that game HWND and
-fades only the child's native alpha into the live game menu. The main game
-window never becomes layered or transparent. Video rendering stays opaque in
-its own context and continues while Minecraft constructs and reloads resources.
+## Development
 
-The provider uses ClientOverlayRouter.create with the five-argument media and
-renderer contract and supplies the existing media fit/show/close/abort hooks.
-It preserves the renderer-release barrier before destroying the video context.
+Use the root build and test scripts. Shared sources compile for Java 17 against the older API; the SDL provider and helper compile separately with official LWJGL 3.4.3 SDK inputs. Immutable compile URLs and hashes are recorded in build-sdk.json; source/prepare_sdk.py fetches and verifies those inputs.
 
-The native surface is public and accepts HWND values, so the GLFW adapter can
-share it without depending on SDL. Its Calls interface permits deterministic
-lifecycle checks without native windows.
+ModernNativeFadeSmoke checks native-call ownership of styles, opacity, resize and rollback. ModernSdlNativeSmoke exercises owned SDL/OpenGL windows, expected pixel readback, cached borderless flags, actual client bounds, maximize/restore/hide/show, H.264 presentation and process/context/window cleanup.
 
-Windows embedding is implemented. Other operating systems use the stock screen.
-The user's selected GPU backend is passed through unchanged, including Vulkan:
-the separate video context still needs OpenGL. Vulkan game-backend coexistence
-has not received a complete Minecraft launch test and is not represented as
-verified end-to-end support.
+## Official references
 
-## Official sources
-
-- https://files.minecraftforge.net/net/minecraftforge/forge/
-- https://maven.minecraftforge.net/net/minecraftforge/forge/26.3-66.0.12/forge-26.3-66.0.12-installer.jar
-- https://github.com/MinecraftForge/MinecraftForge/tree/26.3
-- https://github.com/MinecraftForge/MinecraftForge/blob/26.3/fmlloader/src/main/java/net/minecraftforge/fml/loading/ImmediateWindowProvider.java
-- https://github.com/MinecraftForge/MinecraftForge/blob/26.3/patches/minecraft/net/minecraft/client/gui/screens/LoadingOverlay.java.patch
+- https://wiki.libsdl.org/SDL3/SDL_SetWindowBordered
+- https://github.com/libsdl-org/SDL/blob/main/src/video/windows/SDL_windowsevents.c
+- https://github.com/MinecraftForge/MinecraftForge
 - https://piston-meta.mojang.com/mc/game/version_manifest_v2.json
-
-Build inputs are recorded in build-sdk.json; run source/prepare_sdk.py from the repository root to fetch and verify them.

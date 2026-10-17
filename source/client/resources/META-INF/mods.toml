@@ -1,9 +1,9 @@
 modLoader="javafml"
 loaderVersion="[47,67)"
-license="MIT"
+license="PolyForm-Noncommercial-1.0.0 AND MIT"
 [[mods]]
 modId="shanghanearlyloading"
-version="0.4.0"
+version="0.4.2"
 displayName="Forge Loading Framework"
 displayTest="IGNORE_SERVER_VERSION"
 description="Independent streaming early loading provider and client loading overlay."

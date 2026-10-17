@@ -1,4 +1,4 @@
-"""Build a complete Windows author bundle, retaining the published runtime Jars."""
+"""Build a complete Windows author bundle, including the reviewed runtime Jars."""
 from pathlib import Path
 import argparse
 import hashlib
@@ -17,8 +17,8 @@ FFMPEG_SHA256 = "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047b
 GSON_URL = "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar"
 GSON_SHA256 = "4241c14a7727c34feea6507ec801318a3d4a90f070e4525681079fb94ee4c593"
 RUNTIME_HASHES = {
-    "ForgeLoadingFramework-bootstrap-0.4.0.jar": "61485eec996afcc09c7bb534a97d523025b7a2853d3aa8fc46a0f661ad58901a",
-    "ForgeLoadingFramework-0.4.0.jar": "b258e291626e0e79f352a602012eb6ebcd40aca7d9c9e84a434726a7c1615e56",
+    "ForgeLoadingFramework-0.4.2.jar": "f2e7defd5c787843ce8a85277e37e95e6077ecf03c427eae65de4edb6f80c22f",
+    "ForgeLoadingFramework-bootstrap-0.4.2.jar": "fb6411a966f8a55a14c1422e76b75d618e12a21810dec80618c05e9bafe1fa3b"
 }
 
 def sha256(path):
@@ -46,7 +46,7 @@ def run(command, **kwargs):
     subprocess.run([str(arg) for arg in command], check=True, cwd=ROOT, **kwargs)
 
 def source_files():
-    for name in ("README.md", "INSTALL.md", "CHANGELOG.md", "LICENSE", "release.json", "author-release.json", ".gitignore"):
+    for name in ("README.md", "INSTALL.md", "CHANGELOG.md", "LICENSE", "COMMERCIAL-USE.md", "release.json", "author-release.json", ".gitignore"):
         path = ROOT / name
         if path.is_file():
             yield path
@@ -135,7 +135,7 @@ def main():
     args = parser.parse_args()
     version = json.loads((ROOT / "author-release.json").read_text(encoding="utf-8"))["version"]
     runtime = json.loads((ROOT / "release.json").read_text(encoding="utf-8"))["version"]
-    if runtime != "0.4.0":
+    if runtime != "0.4.2":
         raise RuntimeError("Update the reviewed runtime hashes before releasing another runtime")
     dist = ROOT / "dist"
     work = ROOT / "work/release-bundle"
@@ -193,7 +193,7 @@ def main():
         for path in source_files():
             archive.write(path, path.relative_to(ROOT).as_posix())
     with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-        for name in ("README.md", "INSTALL.md", "CHANGELOG.md", "LICENSE", "docs/作者使用教程.md"):
+        for name in ("README.md", "INSTALL.md", "CHANGELOG.md", "LICENSE", "COMMERCIAL-USE.md", "docs/作者使用教程.md"):
             archive.write(ROOT / name, name)
         archive.write(source, source.name)
         for path in sorted(portable.rglob("*")):
@@ -208,7 +208,7 @@ def main():
             archive.write(ffmpeg_dir / original, prefix + "bin/" + name)
         archive.writestr("fml配置合并说明.txt", '在实例 config/fml.toml 合并以下设置，保留其他设置：\nearlyWindowControl = true\nearlyWindowProvider = "shanghanearlyloading"\n')
         archive.writestr("接入说明.txt", "先阅读 README.md 或 docs/作者使用教程.md。\n自动安装：打开作者工具/ForgeLoadingAuthor.exe，选择已安装实例与自己的视频。\n手动安装：合并“可复制到实例”中的文件，按说明合并 fml.toml。\n")
-        archive.writestr("素材使用说明.txt", "本包使用程序生成的演示视频和静音AAC音轨，不包含原整合包视频或图片。请替换成自己的素材。\nFFmpeg和便携Java的许可随文件提供，项目MIT许可不替代第三方许可。\n")
+        archive.writestr("素材使用说明.txt", "本包使用程序生成的演示视频和静音AAC音轨，不包含原整合包视频或图片。请替换成自己的素材。\nFFmpeg和便携Java的许可随文件提供，项目的非商业许可及保留的MIT授权均不替代第三方许可。\n")
     verify_bundle(bundle, RUNTIME_HASHES)
     sums = dist / "SHA256SUMS.txt"
     artifacts = [bundle, source]

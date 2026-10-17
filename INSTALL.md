@@ -1,4 +1,4 @@
-# 安装说明：游戏组件 0.4.0 / 作者工具 0.4.1
+# 安装说明：游戏组件 0.4.2 / 作者工具 0.4.1
 
 适用 Windows；Minecraft/Forge 与 Java 对应关系见 README。请在副本中接入并备份原配置。
 
@@ -38,8 +38,8 @@ earlyWindowProvider = "shanghanearlyloading"
 实例目录结构：
 
     mods/
-      ForgeLoadingFramework-bootstrap-0.4.0.jar
-      ForgeLoadingFramework-0.4.0.jar
+      ForgeLoadingFramework-bootstrap-0.4.2.jar
+      ForgeLoadingFramework-0.4.2.jar
     config/
       fml.toml
     loading/

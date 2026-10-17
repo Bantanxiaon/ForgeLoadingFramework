@@ -19,6 +19,7 @@ with zipfile.ZipFile(jar,"w",zipfile.ZIP_DEFLATED) as z:
    if n.startswith("com/google/gson/") and not n.endswith("/"):z.writestr(n,dependency.read(n))
  z.writestr("runtime.json",json.dumps(profile).encode("utf-8"))
  z.writestr("author-version.txt",tool_version+"\n")
+ for legal in ["LICENSE","COMMERCIAL-USE.md"]:z.write(project/legal,"META-INF/"+legal)
  for name in [f"ForgeLoadingFramework-bootstrap-{version}.jar",f"ForgeLoadingFramework-{version}.jar"]:z.write(project/"dist"/name,"payload/"+name)
  z.write(Path(args.ffmpeg_dir)/"bin/ffmpeg.exe","payload/ffmpeg.exe")
  for name in ["LICENSE","README.txt"]:z.write(Path(args.ffmpeg_dir)/name,"third_party/ffmpeg/"+name)
@@ -33,4 +34,5 @@ if args.portable:
  cmd=[str(jdk/"bin/jpackage.exe"),"--type","app-image","--name","ForgeLoadingAuthor","--app-version",tool_version,"--input",str(app),"--dest",str(target),"--main-jar",jar.name,"--main-class","AuthorTool","--add-modules","java.desktop,java.logging,java.xml,java.naming","--java-options","-Dfile.encoding=UTF-8","--java-options","-Duser.home=$APPDIR"]
  r=subprocess.run(cmd,capture_output=True)
  if r.returncode:raise SystemExit(r.stderr.decode("utf-8",errors="replace"))
+ for legal in ["LICENSE","COMMERCIAL-USE.md"]:(target/"ForgeLoadingAuthor"/legal).write_bytes((project/legal).read_bytes())
  print("PORTABLE",target/"ForgeLoadingAuthor")

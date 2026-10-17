@@ -12,6 +12,7 @@ import shanghan.early.MediaSession;
 import shanghan.early.Settings;
 import shanghan.early.VideoRenderer;
 import shanghan.modern.boot.NativeFadeSurface;
+import shanghan.modern.boot.SdlEmbeddedWindow;
 
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -68,12 +69,18 @@ public final class ModernSdlNativeSmoke {
    HWND parentNative=handle(parentHwnd),childNative=handle(childHwnd);
    int originalParentEx=user.GetWindowLong(parentNative,-20);
    assertOpaqueParent(user,parentNative,parent,originalParentEx);
+   require(SDL_ShowWindow(child),"Showing early video window failed");
+   require(SDL_MaximizeWindow(child),"Maximizing early video window failed");
+   require(SDL_SyncWindow(child),"Early video maximize did not settle");
+   SdlEmbeddedWindow.prepare(child);
+   require((SDL_GetWindowFlags(child)&SDL_WINDOW_BORDERLESS)!=0,"SDL cached borderless flag is missing");
+   require((SDL_GetWindowFlags(child)&(SDL_WINDOW_MAXIMIZED|SDL_WINDOW_MINIMIZED))==0,"SDL child state is still maximized");
    surface=new NativeFadeSurface(childHwnd,parentHwnd);surface.attach();
    require(surface.isAttached(),"Video drawable was not embedded");
    require((user.GetWindowLong(childNative,-16)&0x40000000)!=0,"Video is not a child drawable");
    require(user.GetParent(childNative).equals(parentNative),"Unexpected video parent");
    require(topLevelCount(user,parentHwnd,childHwnd)==1,"Owned windows did not merge into one top-level window");
-   SDL_ShowWindow(parent);
+   SDL_ShowWindow(parent);pump();surface.fit();assertBorderless(user,childNative);
    media=new MediaSession(fixture,settings);media.detached=true;media.start();
    long decodeDeadline=System.nanoTime()+5_000_000_000L;
    while(media.decoded==0&&!media.videoFailed&&System.nanoTime()<decodeDeadline) {
@@ -107,6 +114,13 @@ public final class ModernSdlNativeSmoke {
    require(surface.width()!=previousWidth||surface.height()!=previousHeight,"Resize produced no dimension change");
    assertOpaqueParent(user,parentNative,parent,originalParentEx);
    require(topLevelCount(user,parentHwnd,childHwnd)==1,"Resize detached a second top-level video window");
+   require(SDL_MaximizeWindow(parent),"Game maximize failed");
+   require(SDL_SyncWindow(parent),"Game maximize did not settle");pump();surface.fit();assertBorderless(user,childNative);
+   require(SDL_RestoreWindow(parent),"Game restore failed");
+   require(SDL_SyncWindow(parent),"Game restore did not settle");pump();surface.fit();assertBorderless(user,childNative);
+   require(SDL_HideWindow(parent),"Game hide failed");pump();
+   require(SDL_ShowWindow(parent),"Game show failed");pump();surface.fit();assertBorderless(user,childNative);
+   require(topLevelCount(user,parentHwnd,childHwnd)==1,"Window state changes created a second top-level video");
    surface.opacity(1);
    require(SDL_GL_MakeCurrent(child,childContext),"Video texture context switch failed");
    GL.setCapabilities(childCaps);
@@ -150,8 +164,16 @@ public final class ModernSdlNativeSmoke {
   require(decoders.stream().noneMatch(ProcessHandle::isAlive),"A decoder process remained alive after shutdown");
   require(destroyedChild&&destroyedParent,"Native windows did not complete normal teardown");
   System.out.println("ModernSdlNativeSmoke PASS real SDL/OpenGL contexts presented and verified owned pixels; "
-    +"one top-level window, child native alpha 255/128/0, live resize, opaque parent, "
+    +"SDL flags and Win32 borderless client area after early maximize, game maximize/restore/hide/show; one top-level window, child native alpha 255/128/0, live resize, opaque parent, "
     +"shared video renderer uploaded H.264, both windows/contexts released, and actual FFmpeg decoder processes exited.");
+ }
+ private static void assertBorderless(User32 user,HWND child){
+  require((user.GetWindowLong(child,-16)&0x00CF0000)==0,"SDL video native caption/resize decorations returned");
+  require((user.GetWindowLong(child,-20)&0x00020341)==0,"SDL video native extended frame decorations remain");
+  RECT client=new RECT(),outer=new RECT();
+  require(user.GetClientRect(child,client)&&user.GetWindowRect(child,outer),"Video client bounds unavailable");
+  require(client.right-client.left==outer.right-outer.left&&client.bottom-client.top==outer.bottom-outer.top,
+    "SDL video client area has non-client border: client="+(client.right-client.left)+"x"+(client.bottom-client.top)+" outer="+(outer.right-outer.left)+"x"+(outer.bottom-outer.top));
  }
  private static void draw(long window,long context,GLCapabilities capabilities,float red,float green,float blue,
      boolean expectRed) {

@@ -49,7 +49,7 @@ public final class NativeFadeSurface {
    int style=(childStyle&~(0x80000000|0x00C00000|0x000F0000|0x01000000|0x20000000))
      |CHILD|VISIBLE;
    calls.style(child,STYLE,style);
-   calls.style(child,EX_STYLE,(childExStyle&~(0x00040000|0x00000080|0x00000008))|LAYERED);
+   calls.style(child,EX_STYLE,(childExStyle&~(0x00040000|0x00000080|0x00000008|0x00000001|0x00000040|0x00000100|0x00000200|0x00020000))|LAYERED);
    // Allow the parent to keep drawing the live menu underneath the fading child.
    calls.style(parent,STYLE,parentStyle&~CLIP_CHILDREN);
    calls.parent(child,parent);

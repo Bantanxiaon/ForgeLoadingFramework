@@ -155,6 +155,7 @@ public class ShangHanProvider implements ImmediateWindowProvider {
  protected void enableNativeFade(){
   if(!media.detached||gameWindow==0||nativeSurface!=null)return;
   if(org.lwjgl.system.Platform.get()!=org.lwjgl.system.Platform.WINDOWS)throw new IllegalStateException("Native video fade requires Windows");
+  WindowSurface.prepareChild(window);
   nativeSurface=new shanghan.modern.boot.NativeFadeSurface(
    org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window(window),
    org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window(gameWindow));

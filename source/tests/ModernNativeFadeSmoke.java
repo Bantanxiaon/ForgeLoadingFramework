@@ -4,7 +4,7 @@ import java.util.Map;
 
 public final class ModernNativeFadeSmoke {
  private static final long CHILD=10,PARENT=20;
- private static final int INITIAL_CHILD=0x80CF0000,INITIAL_EX=0x00040080,INITIAL_PARENT=0x02CF0000;
+ private static final int INITIAL_CHILD=0x80CF0000,INITIAL_EX=0x000603C9,INITIAL_PARENT=0x02CF0000;
  public static void main(String[] args) {
   if(NativeFadeSurface.opacityByte(1)!=255||NativeFadeSurface.opacityByte(0)!=0
     ||NativeFadeSurface.opacityByte(.5f)!=128||NativeFadeSurface.opacityByte(2)!=255
@@ -20,6 +20,8 @@ public final class ModernNativeFadeSmoke {
    throw new AssertionError("Opaque embedded surface missing");
   if((calls.style(CHILD,-16)&0x40000000)==0||(calls.style(CHILD,-20)&0x00080000)==0)
    throw new AssertionError("Native child styles missing");
+  if((calls.style(CHILD,-16)&0x00CF0000)!=0||(calls.style(CHILD,-20)&0x00020341)!=0)
+   throw new AssertionError("Video caption, resize or extended frame decorations remain");
   if(calls.style(PARENT,-20)!=0x100)
    throw new AssertionError("Parent top-level transparency style was changed");
   int opacityCalls=calls.opacityCalls,positionCalls=calls.positionCalls;

@@ -219,12 +219,16 @@ public final class SdlWindowProvider implements ImmediateWindowProvider {
    SDL_SetWindowPosition(gameWindow,x,y);
    SDL_SetWindowTitle(gameWindow,media.settings.title);
    try {
-    NativeFadeSurface embedding=new NativeFadeSurface(hwnd(window),hwnd(gameWindow));
-    embedding.attach();surface=embedding;
-    SDL_ShowWindow(gameWindow);
-    if(media.settings.maximized)SDL_MaximizeWindow(gameWindow);
-    fitSurface();
-    media.log("WINDOW_HANDOFF adapter=SDL embedded=true topLevelWindows=1 backend="
+    contextLock.lock();
+    try {
+     SdlEmbeddedWindow.prepare(window);
+     NativeFadeSurface embedding=new NativeFadeSurface(hwnd(window),hwnd(gameWindow));
+     embedding.attach();surface=embedding;
+     SDL_ShowWindow(gameWindow);
+     if(media.settings.maximized)SDL_MaximizeWindow(gameWindow);
+     fitSurface();
+    } finally {contextLock.unlock();}
+    media.log("WINDOW_HANDOFF adapter=SDL embedded=true videoBorderless=true topLevelWindows=1 backend="
       +selected.getClass().getName());
    } catch(Throwable embeddingError) {
     media.log("EMBEDDING_FAILED "+embeddingError);

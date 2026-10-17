@@ -37,7 +37,7 @@ for component,name in [('boot',f'ForgeLoadingFramework-bootstrap-{version}.jar')
  if result.returncode:raise SystemExit(result.returncode)
  if component=='boot':
   # The SDL-only class needs the modern SDK. Shared code remains bound to oldest supported LWJGL.
-  modern_sources=list((root/'adapters/modern/src').rglob('SdlWindowProvider.java'))
+  modern_sources=[f for f in (root/'adapters/modern/src').rglob('*.java') if f.name!='NativeFadeSurface.java']
   modern_cp=[str(classes)]+[str(x) for x in sdk]+cp
   modern_args=['-J-Dfile.encoding=UTF-8','-proc:none','-encoding','UTF-8','--release','17','-classpath',';'.join(modern_cp),'-d',str(classes)]+[str(x) for x in modern_sources]
   modern_argfile=root.parent/'work/build'/'sdl-javac.args'
@@ -53,6 +53,7 @@ for component,name in [('boot',f'ForgeLoadingFramework-bootstrap-{version}.jar')
      entry=zipfile.ZipInfo(f.relative_to(b).as_posix(),date_time=(2026,1,1,0,0,0));entry.compress_type=zipfile.ZIP_DEFLATED;entry.external_attr=0o644<<16;data=f.read_bytes()
      if component=='client' and f.name=='mods.toml':
       text=data.decode('utf-8')
+      text=re.sub(r'(?m)^license="[^"]*"',lambda m:'license="PolyForm-Noncommercial-1.0.0 AND MIT"',text)
       text=re.sub(r'(?m)^version="[^"]*"(?=\r*$)',f'version="{version}"',text)
       text=re.sub(r'(?m)^loaderVersion="[^"]*"',lambda m:'loaderVersion="'+profile['loaderRange']+'"',text)
       mc_dependency=r'(?ms)(^\[\[dependencies\.shanghanearlyloading\]\]\s*modId="minecraft"\s*mandatory=true\s*versionRange=)"[^"]*"'
@@ -68,6 +69,8 @@ for component,name in [('boot',f'ForgeLoadingFramework-bootstrap-{version}.jar')
       if metadata['mods'][0]['version']!=version:raise SystemExit('Mod version differs from runtime profile')
       data=text.encode('utf-8')
      z.writestr(entry,data)
+  for legal in ['LICENSE','COMMERCIAL-USE.md']:
+   z.write(root.parent/legal,'META-INF/'+legal)
   if component in ['boot','client']:
    entry=zipfile.ZipInfo('shanghan/'+('early' if component=='boot' else 'client')+'/runtime.json',date_time=(2026,1,1,0,0,0));entry.compress_type=zipfile.ZIP_DEFLATED;z.writestr(entry,json.dumps(profile,sort_keys=True).encode('utf-8'))
  print(name,out.stat().st_size,hashlib.file_digest(out.open('rb'),'sha256').hexdigest())
