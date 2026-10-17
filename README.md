@@ -1,5 +1,7 @@
 # Forge Loading Framework 0.4.0
 
+**其他加载器版本：** [Fabric 版（开发中，查看说明）](docs/Fabric版本说明.md)。Forge 与 Fabric 使用不同的 Mod 文件，请按实例加载器选择。
+
 **后续新增代码及新版本禁止商业使用。** 采用 PolyForm Noncommercial 1.0.0；v0.4.1 及以前已发布的版本保留原 MIT 授权。[许可范围说明](COMMERCIAL-USE.md)
 
 Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 的已知 Forge 版本族。使用同一对 Jar，根据实际版本和接口选择适配代码，不再为每个 Forge 补丁版本单独发包。
