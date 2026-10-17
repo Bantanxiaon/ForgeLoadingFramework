@@ -61,7 +61,7 @@
       "y": "618"
     },
     "percent": {
-      "text": "${stagePercent}",
+      "text": "${overallPercent}",
       "size": 23,
       "weight": "bold",
       "x": "1150",

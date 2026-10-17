@@ -32,6 +32,10 @@ public final class MediaSession implements AutoCloseable {
  private volatile float fade=1;
  private volatile long fadeBegin;
  public volatile boolean detached;
+ public volatile boolean nativeWindowFade;
+ private volatile boolean renderReleased;
+ public void markRenderReleased(){renderReleased=true;}
+ public boolean readyForWindowClose(){return stopped&&renderReleased;}
  public Runnable showGame=()->{},closeWindow=()->{},abortLoading=()->{},fitWindow=()->{};
  public void beginFade(){if(fadeBegin==0)fadeBegin=System.nanoTime();}
  public float opacity(){long t=fadeBegin;return t==0?(settings.fadeInMs==0||origin==0?1:Math.min(1,(System.nanoTime()-origin)/(settings.fadeInMs*1_000_000f))):Math.max(0,1-(System.nanoTime()-t)/(settings.fadeOutMs*1_000_000f));}

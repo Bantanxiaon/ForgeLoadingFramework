@@ -1,7 +1,7 @@
 package shanghan.client;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.ModLoadingContext;
+/** The entry itself has no Minecraft or deprecated ModLoadingContext method dependency. */
 @Mod("shanghanearlyloading")
 public final class ShangHanMod {
- public ShangHanMod(){ModLoadingContext.get().registerDisplayTest("IGNORE_SERVER_VERSION",(version,isServer)->true);}
+ public ShangHanMod(){}
 }

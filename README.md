@@ -1,82 +1,43 @@
-# Forge Loading Framework
+# Forge Loading Framework 0.4.0
 
-Minecraft Forge 1.20.1 客户端启动视频加载组件。当前版本：0.3.0 Alpha。
+Windows 客户端的 Forge 启动视频组件，支持 Minecraft 1.20.1–26.3 的已知 Forge 版本族。使用同一对 Jar，根据实际版本和接口选择适配代码，不再为每个 Forge 补丁版本单独发包。
 
-在 Forge 早期加载和 Minecraft 资源加载过程中播放外部 H.264 MP4 与 AAC 音频，显示加载阶段及可观察到的当前 Mod 任务，完成后渐隐进入整合包原主菜单。
+启动时播放外部 H.264 MP4 / AAC 音频，显示加载任务和单一总进度，完成后渐隐进入游戏原主菜单。整合包标题自动读取元数据或实例名称，更换视频不需要重新编译。
 
-A client loading-video framework for Minecraft 1.20.1 Forge. Plays external H.264/AAC media, displays loading stages and observable active mod tasks, and fades into the existing main menu.
+## 安装
 
-## Compatibility / 当前范围
+从 [downloads](downloads/README.md) 获取两个同版本文件，放进实例 mods，素材和播放器放进 loading。详细步骤见 [INSTALL.md](INSTALL.md)。
 
-- Windows、Java 17、Minecraft 1.20.1。
-- 构建目标：Forge 47.3.22、47.3.33；完整最终版本在 47.3.22 上通过 PCL 启动。47.3.33 曾进行启动测试，之后的修订通过构建和回归检查。
-- 视频显示层嵌入游戏窗口，软件解码，OpenGL 合成。
-- 默认解码输出 640×360、30 FPS；实际性能取决于电脑和整合包负载，低配置设备需要实际测试。
-- 其他系统及 Forge build 尚未验证。不修改 Forge 或 PCL 本体。
+| 文件 | 用途 |
+| --- | --- |
+| ForgeLoadingFramework-bootstrap-0.4.0.jar | 早期窗口服务、版本路由、视频、音频和进度 |
+| ForgeLoadingFramework-0.4.0.jar | Forge 客户端 Mod、资源加载与菜单交接 |
+| ForgeLoadingAuthor-0.4.0.jar | 可选作者工具，安装、转码、备份与还原 |
 
-## Installation / 安装
+Bootstrap 是早期服务库，普通 Mod 列表可能只显示客户端组件。没有额外前置 Mod；FFmpeg 是外部播放器依赖。作者工具无需安装进游戏。
 
-两个运行时组件可从 downloads 目录下载：
+不修改 Forge/PCL 本体，不需要私有启动器，不依赖开发会话。仓库不包含 Minecraft、Java、第三方播放器二进制或视频素材。
 
-- ForgeLoadingFramework-bootstrap-0.3.0.jar：早期窗口服务、媒体、主题和进度。
-- ForgeLoadingFramework-0.3.0.jar：Forge 客户端 Mod、资源加载和主菜单过渡。
+## 版本与维护
 
-经过运行测试的方式：Bootstrap 作为标准 Maven library 注册，客户端 Jar 放入实例 mods。具体步骤见 [INSTALL.md](INSTALL.md)。
+| Minecraft | Forge 主版本 | 游戏所需 Java |
+| --- | --- | --- |
+| 1.20.1–1.20.4 | 47–49 | 17 |
+| 1.20.6、1.21–1.21.11 的已发布 Forge 对应版本 | 50–61 | 21 |
+| 26.1–26.3 | 62–66 | 25 |
 
-作者工具源码提供安装、转码和还原功能，安装前备份实例配置。此工具不属于游戏运行时的第三个 Mod。
+1.20.1 最低 Forge 47.3.22。仅接受路由表列出的 Minecraft/Forge 配对；没有对应 Forge 发行的版本不凭空添加支持。运行时先检查接口，再加载具体适配代码；同一版本族补丁通常无需改代码，但实际兼容仍以测试为准。未知或不兼容接口保留标准 Forge 加载流程。
 
-两个 Jar 都放入 mods 的简化方式目前只完成机制审查，尚未完成实际导入和启动验证。
+共用媒体、配置和进度核心；窗口入口分为旧 GLFW、带后端参数的 GLFW、SDL 三类，后端选择接口另做探测。资源加载桥接保留旧接口路径，并为较新游戏生成本组件自己的 LoadingOverlay 子类，不修改游戏或 Forge 类。新 Minecraft 改动接口时仍可能需要补充适配，路由不能免除未来维护。
 
-本仓库不附带第三方播放器、Java、Minecraft 库、整合包或视频素材。
+不同整合包、显卡和第三方加载界面仍需分别验证。Vulkan、Linux 和 macOS 未作为完整游戏实测支持范围。
 
-## Configuration / 配置与素材
+## 配置和性能
 
-将 source/examples/loading 复制为实例中的 loading 文件夹，放入自己的 video/loading.mp4 和 bin/ffmpeg.exe。
+配置模板位于 source/examples/loading。默认输出 640×360、30 FPS，画面按窗口缩放；不默认解码 1080p。FFmpeg 软件解码，OpenGL 合成，有界帧队列、复用纹理、降低 UI 重绘频率；播放期间持续更新。帧率仍取决于电脑和加载负载，不能保证所有电脑始终达到 30 FPS。
 
-默认播放视频中的音频；audioFile 可指定独立音频。标题留空时读取整合包元数据或实例名称。视频、字体和图片路径相对于 loading 文件夹；兼容旧 config/shanghan_loading 目录。
+进度条和数字均使用 overall，总进度不按阶段清零。任务显示 Forge 可观察到的当前 Mod 名称、modId 和操作；游戏没有暴露的内部子任务无法逐项获得。百分比不是剩余时间承诺。
 
-width、height、fps、volume、fadeOutMs 控制视频输出、音量和过渡。ui 配置控制标题、状态、任务条目、进度条和 Logo 的字体、位置及颜色。更换素材无需重新编译。
+## 开发
 
-FFmpeg 是外部媒体依赖。请自行获取 Windows 构建并放到上述路径，或配置 ffmpeg 路径。分发它时须遵守实际构建及第三方组件的许可证。
-
-## Build / 构建
-
-需要 Python 3、JDK 17，以及由正常启动器安装的 Minecraft/Forge libraries。不重新编译 Forge。
-
-    python -B source/build.py --forge 47.3.22 --jdk "<JDK17>" --libraries "<minecraft libraries>"
-    python -B source/build.py --forge 47.3.33 --jdk "<JDK17>" --libraries "<minecraft libraries>"
-
-产物在 dist。构建脚本目前使用 Windows 工具文件名。
-
-先构建运行时 Jar，再构建作者工具：
-
-    python -B source/build_author.py --jdk "<JDK17>" --libraries "<minecraft libraries>" --ffmpeg-dir "<FFmpeg build directory>"
-
-添加 --portable 可生成包含 Java 运行时的 app-image。完整分发工具前，应补齐 FFmpeg 对应源码、构建资料及许可证；本次只公开作者工具源码。
-
-## Tests / 测试
-
-    python -B source/test.py --jdk "<JDK17>" --libraries "<minecraft libraries>" --ffmpeg "<ffmpeg.exe>" --video "<test video.mp4>"
-
---non-gl 跳过图形测试。检查覆盖窗口嵌入、音频时钟、重复帧纹理、过渡不透明度、配置、进度任务及媒体失败恢复。
-
-进度来自 Forge 与 Minecraft 可观察的状态；没有公开信号的 Mod 内部子任务无法逐项展示。阶段百分比不等同于整个启动耗时的精确比例。
-
-## Source layout / 模块
-
-- source/boot：早期服务、窗口、媒体、主题、进度和有限的扩展 API。
-- source/client：Forge Mod、资源加载桥接、主菜单过渡。
-- source/author：安装、转码和还原工具。
-- source/tests：回归检查。
-- source/examples/loading：外部配置模板。
-- release.json：版本和构建目标。
-
-内部包名、modId 与服务标识保留 shanghan 名称，便于已有实例升级。
-
-## Issues / 反馈
-
-请提供 Windows、Java、Forge、启动器版本与复现步骤，日志应去除账号信息。不要上传访问令牌、账户文件或私人存档。
-
-## License
-
-代码沿用 Mod 元数据中的 MIT 许可证，见 [LICENSE](LICENSE)。第三方组件保留各自许可证；Gson 许可位于 source/third_party/gson-LICENSE。
+源代码、构建入口和 SDK 隔离说明见 [source/README.md](source/README.md)。源码使用 MIT 许可证，第三方依赖遵循各自许可证，见 LICENSE 和 source/third_party。

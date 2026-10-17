@@ -17,12 +17,12 @@ public final class Theme {
   public int radius=10;public float opacity=1;public boolean enabled=true;
  }
  public static final class Config {
-  public Text title=new Text("${packName}",36,"440"),subtitle=new Text("${subtitle}",19,"481"),status=new Text("当前正在加载："+ "${stage}",23,"516"),tasks=new Text("",19,"551"),percent=new Text("${stagePercent}",23,"640"),mods=new Text("${modCount}",15,"618");
+  public Text title=new Text("${packName}",36,"440"),subtitle=new Text("${subtitle}",19,"481"),status=new Text("当前正在加载："+ "${stage}",23,"516"),tasks=new Text("",19,"551"),percent=new Text("${overallPercent}",23,"640"),mods=new Text("${modCount}",15,"618");
   public Box progress=new Box(),logo=new Box();
   public boolean dimBackground=true;public String background="#0C1713";public float shadeOpacity=.86f;
   public int maxTasks=3,taskSpacing=25;
   public Config(){title.weight="bold";status.weight="bold";percent.weight="bold";percent.x="1150";logo.x="50";logo.y="300";logo.width="96";logo.height="96";}
-  public void normalize(){Config d=new Config();if(title==null)title=d.title;if(subtitle==null)subtitle=d.subtitle;if(status==null)status=d.status;if(tasks==null)tasks=d.tasks;if(percent==null)percent=d.percent;if(mods==null)mods=d.mods;if(progress==null)progress=d.progress;if(logo==null)logo=d.logo;maxTasks=Math.max(1,Math.min(12,maxTasks));taskSpacing=Math.max(12,Math.min(100,taskSpacing));}
+  public void normalize(){Config d=new Config();if(title==null)title=d.title;if(subtitle==null)subtitle=d.subtitle;if(status==null)status=d.status;if(tasks==null)tasks=d.tasks;if(percent==null)percent=d.percent;if("${stagePercent}".equals(percent.text))percent.text="${overallPercent}";if(mods==null)mods=d.mods;if(progress==null)progress=d.progress;if(logo==null)logo=d.logo;maxTasks=Math.max(1,Math.min(12,maxTasks));taskSpacing=Math.max(12,Math.min(100,taskSpacing));}
  }
  private final MediaSession media;private final Config cfg;private final boolean external;private final Map<String,Font> fonts=new HashMap<>();
  private final Map<Text,Font> derived=new IdentityHashMap<>();
@@ -59,7 +59,10 @@ public final class Theme {
  private String expand(String text,ProgressProvider.Snapshot p){
   String count=p.totalMods()>0?"已发现 "+p.discoveredMods()+" / "+p.totalMods()+" 个模组":"";
   String phase=p.stageFraction()>=0?(int)Math.floor(p.stageFraction()*100)+"%":"";
-  return (text==null?"":text).replace("${packName}",media.settings.title).replace("${subtitle}",media.settings.subtitle==null?"":media.settings.subtitle).replace("${stage}",p.stage()).replace("${stagePercent}",phase).replace("${modCount}",count).replace("${sourceLabel}",p.sourceLabel());
+  double overall=Double.isFinite(p.overall())?Math.max(0,Math.min(1,p.overall())):0;
+  int percent=p.accuracy()==ProgressProvider.Accuracy.COMPLETE&&overall==1?100:Math.min(99,(int)Math.floor(overall*100));
+  String total=percent+"%";
+  return (text==null?"":text).replace("${packName}",media.settings.title).replace("${subtitle}",media.settings.subtitle==null?"":media.settings.subtitle).replace("${stage}",p.stage()).replace("${overallPercent}",total).replace("${stagePercent}",phase).replace("${modCount}",count).replace("${sourceLabel}",p.sourceLabel());
  }
  private void text(Graphics2D g,Text t,String value,int offset){
   if(!t.enabled||value.isBlank())return;g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,alpha(t.opacity)));g.setFont(font(t));g.setColor(color(t.color,Color.WHITE));

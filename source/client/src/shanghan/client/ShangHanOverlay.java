@@ -39,7 +39,7 @@ public final class ShangHanOverlay extends LoadingOverlay {
    if(finished&&!fadeBegun){
     renderer.captureMenu(mc.m_91268_().m_85441_(),mc.m_91268_().m_85442_());fadeBegun=true;media.showGame.run();media.beginFade();media.log("MINECRAFT_READY clock="+media.clock());
    }
-   if(finished&&media.stopped){media.closeWindow.run();mc.m_91150_(null);removed=true;media.log("OVERLAY_CLOSED");media.finishLogging();}
+   if(finished&&media.readyForWindowClose()){media.closeWindow.run();mc.m_91150_(null);removed=true;media.log("OVERLAY_CLOSED");media.finishLogging();}
    return;
   }
   media.fade(alpha);

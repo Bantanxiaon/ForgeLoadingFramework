@@ -9,3 +9,7 @@ __pycache__/
 *.mp4
 *.zip
 .env
+
+source/adapters/modern/dependencies/
+TEST_REPORT.md
+PCL-matrix*.json

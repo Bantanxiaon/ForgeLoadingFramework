@@ -1,3 +1,4 @@
+import shanghan.routing.RuntimeRouter;
 import com.google.gson.*;
 import javax.swing.*;import javax.swing.border.EmptyBorder;
 import java.awt.*;import java.awt.datatransfer.*;import java.io.*;import java.nio.file.*;import java.security.*;import java.time.*;import java.time.format.*;import java.util.*;import java.util.function.*;import java.util.regex.*;
@@ -16,16 +17,30 @@ public final class AuthorTool{
  static String hash(byte[] bytes,String algorithm)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance(algorithm).digest(bytes));}
  static Path version(Path instance){return instance.resolve(instance.getFileName()+".json");}
  static String forge(Path instance)throws IOException{
-  JsonArray game=json(version(instance)).getAsJsonObject("arguments").getAsJsonArray("game");
-  String mc="",forge="";
-  for(int i=0;i+1<game.size();i++)if(game.get(i).isJsonPrimitive()){
+  if(instance.getParent()==null||!instance.getParent().getFileName().toString().equals("versions"))
+   throw new IOException("请选择 .minecraft/versions 下的实例目录。");
+  JsonObject data=json(version(instance));String mc="",forge="";
+  JsonObject arguments=data.has("arguments")?data.getAsJsonObject("arguments"):null;
+  JsonArray game=arguments!=null&&arguments.has("game")?arguments.getAsJsonArray("game"):new JsonArray();
+  for(int i=0;i+1<game.size();i++)if(game.get(i).isJsonPrimitive()&&game.get(i+1).isJsonPrimitive()){
    String key=game.get(i).getAsString();
    if(key.equals("--fml.forgeVersion"))forge=game.get(i+1).getAsString();
    if(key.equals("--fml.mcVersion"))mc=game.get(i+1).getAsString();
   }
-  boolean compatible=false;for(JsonElement supported:PROFILE.getAsJsonArray("forgeBuilds"))if(supported.getAsString().equals(forge))compatible=true;
-  if(!mc.equals(PROFILE.get("minecraft").getAsString())||!compatible)throw new IOException("目前支持 Minecraft 1.20.1 + Forge 47.3.22 / 47.3.33。此实例为 "+mc+" / "+forge);
-  if(!instance.getParent().getFileName().toString().equals("versions"))throw new IOException("请选择 .minecraft/versions 下的实例目录。");
+  if(data.has("libraries"))for(JsonElement item:data.getAsJsonArray("libraries")){
+   JsonObject library=item.getAsJsonObject();if(!library.has("name"))continue;
+   String[] coordinate=library.get("name").getAsString().split(":");
+   if(coordinate.length<3||!coordinate[0].equals("net.minecraftforge")||!java.util.Set.of("forge","fmlloader").contains(coordinate[1]))continue;
+   int split=coordinate[2].indexOf('-');if(split<0)continue;
+   String detectedMc=coordinate[2].substring(0,split),detectedForge=coordinate[2].substring(split+1);
+   if(!mc.isEmpty()&&!mc.equals(detectedMc)||!forge.isEmpty()&&!forge.equals(detectedForge))
+    throw new IOException("实例中的 Forge 版本声明不一致。");
+   mc=detectedMc;forge=detectedForge;
+  }
+  RuntimeRouter.Selection route=RuntimeRouter.select(mc,forge);
+  boolean minimum=true;
+  if(forge.startsWith("47.")){String[] parts=forge.split("[.-]");minimum=Integer.parseInt(parts[1])>3||Integer.parseInt(parts[1])==3&&Integer.parseInt(parts[2])>=22;}
+  if(route==null||!minimum)throw new IOException("此实例尚无适配：Minecraft "+mc+" / Forge "+forge+"。支持范围为 1.20.1 至 26.3 的已发行 Forge 分支。");
   return forge;
  }
  static Path libraryRoot(Path instance){return instance.getParent().getParent().resolve("libraries");}
@@ -38,7 +53,10 @@ public final class AuthorTool{
  static boolean ownedMod(Path file){
   if(!file.getFileName().toString().endsWith(".jar"))return false;
   try(java.util.zip.ZipFile zip=new java.util.zip.ZipFile(file.toFile())){
-   var entry=zip.getEntry("META-INF/mods.toml");if(entry==null)return false;
+   var entry=zip.getEntry("META-INF/mods.toml");
+   if(entry==null)return zip.getEntry("shanghan/early/runtime.json")!=null
+     &&zip.getEntry("META-INF/services/net.minecraftforge.fml.loading.ImmediateWindowProvider")!=null
+     &&(zip.getEntry("shanghan/early/RoutingWindowProvider.class")!=null||zip.getEntry("shanghan/early/ShangHanProvider.class")!=null);
    try(InputStream in=zip.getInputStream(entry)){String text=new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);var blocks=Pattern.compile("(?s)\\[\\[mods\\]\\](.*?)(?=\\r?\\n\\s*\\[|\\z)").matcher(text);while(blocks.find())if(Pattern.compile("(?m)^\\s*modId\\s*=\\s*[\"\']shanghanearlyloading[\"\']").matcher(blocks.group(1)).find())return true;return false;}
   }catch(IOException ignored){return false;}
  }
@@ -51,18 +69,20 @@ public final class AuthorTool{
   java.util.List<Path> previous;
   try(var stream=Files.list(mods)){previous=stream.filter(AuthorTool::ownedMod).toList();}
   for(Path file:previous)oldMods.add(file.getFileName().toString());
-  manifest.add("oldMods",oldMods);manifest.addProperty("newMod",CLIENT);manifest.addProperty("clientWritten",false);
+  manifest.add("oldMods",oldMods);manifest.addProperty("newMod",CLIENT);
+  JsonArray newMods=new JsonArray();newMods.add(CLIENT);newMods.add(BOOT);manifest.add("newMods",newMods);manifest.addProperty("clientWritten",false);
   write(b.resolve("backup.json"),manifest);
   try{
    for(Path file:previous)move(file,b.resolve("mods").resolve(file.getFileName()));
    manifest.addProperty("clientWritten",true);write(b.resolve("backup.json"),manifest);
-   Path lib=libraryRoot(instance).resolve(LIB);Files.createDirectories(lib.getParent());Files.write(lib,boot);Files.write(mods.resolve(CLIENT),client);
+   Files.write(mods.resolve(BOOT),boot);Files.write(mods.resolve(CLIENT),client);
    JsonObject data=json(version(instance));JsonArray libs=data.getAsJsonArray("libraries"),updated=new JsonArray();
    for(JsonElement entry:libs)if(!entry.getAsJsonObject().get("name").getAsString().startsWith("shanghan:earlyboot:"))updated.add(entry);
-   JsonObject entry=new JsonObject(),downloads=new JsonObject(),artifact=new JsonObject();entry.addProperty("name",COORD);artifact.addProperty("path",LIB);artifact.addProperty("size",boot.length);artifact.addProperty("sha1",hash(boot,"SHA-1"));downloads.add("artifact",artifact);entry.add("downloads",downloads);updated.add(entry);data.add("libraries",updated);
-   write(version(instance),data);
+   // Normal installations need only two mods. Remove an older Maven injection only when upgrading it.
+   if(updated.size()!=libs.size()){data.add("libraries",updated);write(version(instance),data);}
    Path fml=instance.resolve("config/fml.toml");String text=Files.exists(fml)?Files.readString(fml):"";String provider="earlyWindowProvider = \"shanghanearlyloading\"";
    if(Pattern.compile("(?m)^\\s*earlyWindowProvider\\s*=").matcher(text).find())text=text.replaceAll("(?m)^\\s*earlyWindowProvider\\s*=.*$",provider);else text+="\n"+provider+"\n";
+   if(Pattern.compile("(?m)^\\s*earlyWindowControl\\s*=").matcher(text).find())text=text.replaceAll("(?m)^\\s*earlyWindowControl\\s*=.*$","earlyWindowControl = true");else text+="\nearlyWindowControl = true\n";
    Files.createDirectories(fml.getParent());Files.writeString(fml,text);
    for(String folder:new String[]{"video","audio","fonts","images","cache","bin"})Files.createDirectories(config(instance).resolve(folder));
    Path ff=config(instance).resolve("bin/ffmpeg.exe");Files.createDirectories(ff.getParent());
@@ -91,7 +111,12 @@ public final class AuthorTool{
  }
  static void restoreBackup(Path instance,Path b)throws Exception{
   JsonObject m=json(b.resolve("backup.json"));if(!Path.of(m.get("instance").getAsString()).equals(instance))throw new IOException("备份不属于此实例。");
-  Path current=instance.resolve("mods").resolve(m.get("newMod").getAsString());if(m.has("clientWritten")&&m.get("clientWritten").getAsBoolean()&&Files.exists(current))move(current,b.resolve("rollback-archive").resolve(current.getFileName()));
+  JsonArray installed=m.has("newMods")?m.getAsJsonArray("newMods"):new JsonArray();
+  if(!m.has("newMods"))installed.add(m.get("newMod"));
+  if(m.has("clientWritten")&&m.get("clientWritten").getAsBoolean())for(JsonElement name:installed){
+   Path current=instance.resolve("mods").resolve(name.getAsString());
+   if(Files.exists(current))move(current,b.resolve("rollback-archive").resolve(current.getFileName()));
+  }
   for(JsonElement name:m.getAsJsonArray("oldMods")){Path old=b.resolve("mods").resolve(name.getAsString());if(Files.exists(old))move(old,instance.resolve("mods").resolve(old.getFileName()));}
   Files.copy(b.resolve("version.json"),version(instance),StandardCopyOption.REPLACE_EXISTING);
   for(String name:new String[]{"fml.toml","config.json"}){
@@ -158,7 +183,7 @@ public final class AuthorTool{
   if(chooser.showOpenDialog(frame)==JFileChooser.APPROVE_OPTION){
    instanceField.setText(chooser.getSelectedFile().getAbsolutePath());
    try{
-    String version=forge(instance());status.setText("Minecraft 1.20.1 · Forge "+version+" · 请先退出该实例游戏和 PCL。");
+    String version=forge(instance());status.setText("Forge "+version+" · 已识别受支持实例 · 请先退出该实例游戏和 PCL。");
     Path cfg=config(instance()).resolve("config.json");if(Files.exists(cfg)){JsonObject c=json(cfg);if(c.has("volume"))volume.setValue((int)Math.round(c.get("volume").getAsDouble()*100));if(c.has("width"))quality.setSelectedIndex(c.get("width").getAsInt()>640?1:0);}
    }catch(Exception e){status.setText(e.getMessage());}
   }
@@ -179,7 +204,7 @@ public final class AuthorTool{
  static void gui(){
   frame=new JFrame("Forge 启动视频设置 · "+VERSION);frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);frame.setSize(820,360);frame.setLocationRelativeTo(null);
   JPanel panel=new JPanel(new GridLayout(0,1,0,12));panel.setBorder(new EmptyBorder(20,24,20,24));
-  panel.add(new JLabel("Minecraft 1.20.1 · Forge 47.3.22 / 47.3.33 · 更换视频无需重新编译"));
+  panel.add(new JLabel("Minecraft 1.20.1–26.3 · 自动识别 Forge 版本 · 更换视频无需重新编译"));
   instanceField.setEditable(false);videoField.setEditable(false);
   panel.add(row("整合包",instanceField,button("选择实例",AuthorTool::chooseInstance)));
   panel.add(row("启动视频",videoField,button("选择视频",AuthorTool::chooseVideo)));

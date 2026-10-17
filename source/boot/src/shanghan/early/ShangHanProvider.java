@@ -11,34 +11,39 @@ import java.util.concurrent.locks.*;
 import java.util.function.*;
 import static org.lwjgl.glfw.GLFW.*;
 /** Independent official ImmediateWindowProvider. Does not patch Forge or Minecraft classes. */
-public final class ShangHanProvider implements ImmediateWindowProvider {
- private final ReentrantLock contextLock=new ReentrantLock();
- private volatile boolean handingOff;
- private long window,gameWindow;
- private boolean detached;
- private WindowSurface surface;
- private long lastSurfaceFit;
- private volatile boolean splashClosed;
- private String glVersion="3.2";
- private ScheduledExecutorService ticker;
- private ScheduledFuture<?> task;
- private MediaSession media;
- private VideoRenderer renderer;
- private org.lwjgl.opengl.GLCapabilities earlyCapabilities;
- private boolean namesResolved;
- private final int[] framebufferWidth={0},framebufferHeight={0};
- private long lastProgressPoll,lastDraw;
- private ImmediateWindowProvider fallback;
- private Method overlayFactory,vanillaFactory;
- private ModuleLayer gameLayer;
+public class ShangHanProvider implements ImmediateWindowProvider {
+ protected static volatile boolean initialized;
+ static boolean initialized(){return initialized;}
+ protected final ReentrantLock contextLock=new ReentrantLock();
+ protected volatile boolean handingOff;
+ protected long window,gameWindow;
+ protected boolean detached;
+ protected WindowSurface surface;
+ protected shanghan.modern.boot.NativeFadeSurface nativeSurface;
+ protected long lastSurfaceFit;
+ protected volatile boolean splashClosed;
+ protected String glVersion="3.2";
+ protected ScheduledExecutorService ticker;
+ protected ScheduledFuture<?> task;
+ protected MediaSession media;
+ protected VideoRenderer renderer;
+ protected org.lwjgl.opengl.GLCapabilities earlyCapabilities;
+ protected boolean namesResolved;
+ protected volatile boolean gameLayerReady;
+ protected final int[] framebufferWidth={0},framebufferHeight={0};
+ protected long lastProgressPoll,lastDraw;
+ protected ImmediateWindowProvider fallback;
+ protected Method overlayFactory,vanillaFactory;
+ protected ModuleLayer gameLayer;
  public String name(){return "shanghanearlyloading";}
  public Runnable initialize(String[] arguments){
+  initialized=true;
   Path game=FMLPaths.GAMEDIR.get(),dir=Settings.directory(game);
   Settings settings=Settings.load(dir);if(settings.title==null||settings.title.isBlank())settings.title=PackName.resolve(game,arguments);
   if(!settings.enabled)return fallback(arguments);
   try{
    if(!RuntimeProfile.supports(argument(arguments,"--fml.mcVersion"),argument(arguments,"--fml.forgeVersion")))
-    throw new IllegalStateException("Supported Forge builds: 47.3.22 and 47.3.33");
+    throw new IllegalStateException("Unsupported Minecraft/Forge build for this runtime profile");
    if(!glfwInit())throw new IllegalStateException("GLFW init failed");
    int[][] versions={{4,6},{4,5},{4,3},{3,3},{3,2}};
    for(int[] version:versions){
@@ -70,20 +75,22 @@ public final class ShangHanProvider implements ImmediateWindowProvider {
    return fallback(arguments);
   }
  }
- private static String argument(String[] args,String name){for(int i=0;i+1<args.length;i++)if(name.equals(args[i]))return args[i+1];return "";}
- private Runnable fallback(String[] args){fallback=new DisplayWindow();return fallback.initialize(args);}
- private void renderEarly(){
+ protected static String argument(String[] args,String name){for(int i=0;i+1<args.length;i++)if(name.equals(args[i]))return args[i+1];return "";}
+ protected Runnable fallback(String[] args){fallback=new DisplayWindow();return fallback.initialize(args);}
+ protected void renderEarly(){
   long tick=System.nanoTime();if(tick-lastDraw<500_000_000L/media.settings.fps)return;
   if((handingOff&&!detached)||splashClosed||!contextLock.tryLock())return;lastDraw=tick;
   try{
    glfwMakeContextCurrent(window);GL.setCapabilities(earlyCapabilities);
    int[] w=framebufferWidth,h=framebufferHeight;glfwGetFramebufferSize(window,w,h);
-   if(!namesResolved)try{var list=FMLLoader.getLoadingModList();if(list!=null&&!list.getMods().isEmpty()){for(var info:list.getMods())media.tasks.name(info.getModId(),info.getDisplayName());media.progress.mods(list.getMods().size());namesResolved=true;}}catch(Throwable ignored){}
+   if(!namesResolved)namesResolved=LoaderIntrospection.registerNames(media,gameLayerReady);
    long now=System.nanoTime();if(now-lastProgressPoll>=100_000_000L){media.progress.tick();lastProgressPoll=now;}
    if(detached){org.lwjgl.opengl.GL32C.glClearColor(0,0,0,1);org.lwjgl.opengl.GL32C.glClear(org.lwjgl.opengl.GL32C.GL_COLOR_BUFFER_BIT);}
-   renderer.render(w[0],h[0],media.opacity());glfwSwapBuffers(window);
+   float opacity=media.opacity();media.fade(opacity);
+    if(nativeSurface!=null)nativeSurface.opacity(opacity);
+    renderer.render(w[0],h[0],media.nativeWindowFade?1:opacity);glfwSwapBuffers(window);
    if(detached&&media.opacity()<=0){
-    renderer.close();splashClosed=true;if(task!=null)task.cancel(false);if(ticker!=null)ticker.shutdown();media.log("FADE_RENDER_DONE");
+    renderer.close();splashClosed=true;if(task!=null)task.cancel(false);if(ticker!=null)ticker.shutdown();media.log("FADE_RENDER_DONE");media.markRenderReleased();
    }
   }catch(Throwable e){if(media!=null)media.log("EARLY_RENDER_ERROR "+e);}
   finally{glfwMakeContextCurrent(0);contextLock.unlock();}
@@ -135,20 +142,28 @@ public final class ShangHanProvider implements ImmediateWindowProvider {
   if(fallback!=null)return fallback.positionWindow(monitor,width,height,x,y);
   int[] w={0},h={0},px={0},py={0};glfwGetWindowSize(gameWindow!=0?gameWindow:window,w,h);glfwGetWindowPos(gameWindow!=0?gameWindow:window,px,py);width.accept(w[0]);height.accept(h[0]);x.accept(px[0]);y.accept(py[0]);return true;
  }
- private void stopMediaForStock(){
+ protected void stopMediaForStock(){
   if(task!=null)task.cancel(false);if(ticker!=null)ticker.shutdown();
-  long context=glfwGetCurrentContext();var capabilities=GL.getCapabilities();
+  long context=glfwGetCurrentContext();var capabilities=context==0?null:GL.getCapabilities();
   contextLock.lock();
   try{
-   if(window!=0&&!splashClosed){glfwMakeContextCurrent(window);GL.setCapabilities(earlyCapabilities);renderer.close();splashClosed=true;}
+   if(window!=0&&!splashClosed){glfwMakeContextCurrent(window);GL.setCapabilities(earlyCapabilities);renderer.close();splashClosed=true;media.markRenderReleased();}
    glfwMakeContextCurrent(context);GL.setCapabilities(capabilities);
    if(detached){showGameWindow();closeSplashWindow();}
   }finally{contextLock.unlock();}
  }
- private void fitSurface(){
-  if(surface!=null&&System.nanoTime()-lastSurfaceFit>100_000_000L){surface.fit();lastSurfaceFit=System.nanoTime();}
+ protected void enableNativeFade(){
+  if(!media.detached||gameWindow==0||nativeSurface!=null)return;
+  if(org.lwjgl.system.Platform.get()!=org.lwjgl.system.Platform.WINDOWS)throw new IllegalStateException("Native video fade requires Windows");
+  nativeSurface=new shanghan.modern.boot.NativeFadeSurface(
+   org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window(window),
+   org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window(gameWindow));
+  nativeSurface.attach();
  }
- private void showGameWindow(){
+ protected void fitSurface(){
+  if(System.nanoTime()-lastSurfaceFit>100_000_000L){if(surface!=null)surface.fit();if(nativeSurface!=null)nativeSurface.fit();lastSurfaceFit=System.nanoTime();}
+ }
+ protected void showGameWindow(){
   if(!detached||gameWindow==0)return;
   glfwShowWindow(gameWindow);
   if(surface!=null)return;
@@ -157,13 +172,13 @@ public final class ShangHanProvider implements ImmediateWindowProvider {
    com.sun.jna.platform.win32.User32.INSTANCE.SetWindowPos(new com.sun.jna.platform.win32.WinDef.HWND(com.sun.jna.Pointer.createConstant(b)),new com.sun.jna.platform.win32.WinDef.HWND(com.sun.jna.Pointer.createConstant(a)),0,0,0,0,0x13);
   }catch(Throwable e){media.log("WINDOW_ORDER_WARNING "+e);}
  }
- private void closeSplashWindow(){
+ protected void closeSplashWindow(){
   if(!detached||window==0)return;
   if(!splashClosed)return;
   contextLock.lock();
   try{
    boolean focus=glfwGetWindowAttrib(window,GLFW_FOCUSED)==GLFW_TRUE;
-   if(surface!=null)surface.restoreParent();glfwDestroyWindow(window);window=0;surface=null;
+   if(nativeSurface!=null){nativeSurface.restoreParent();nativeSurface=null;}if(surface!=null)surface.restoreParent();glfwDestroyWindow(window);window=0;surface=null;
    if(focus)glfwFocusWindow(gameWindow);
    media.log("SPLASH_WINDOW_CLOSED");
   }finally{contextLock.unlock();}
@@ -174,30 +189,57 @@ public final class ShangHanProvider implements ImmediateWindowProvider {
   gameLayer=layer;
   for(Module m:layer.modules()){
    getClass().getModule().addReads(m);
-   Class<?> c=Class.forName(m,"shanghan.client.ShangHanOverlay");
+   Class<?> c=Class.forName(m,"shanghan.client.routing.ClientOverlayRouter");
    if(c!=null){
     overlayFactory=Arrays.stream(c.getMethods()).filter(x->x.getName().equals("create")).findFirst().orElse(null);
     try{c.getMethod("installDetails",MediaSession.class).invoke(null,media);}catch(Throwable e){media.log("DETAIL_BRIDGE_UNAVAILABLE "+e);}
    }
-   if(m.getName().equals("forge")){
+   {
     Class<?> v=Class.forName(m,"net.minecraftforge.client.loading.NoVizFallback");
     if(v!=null)vanillaFactory=Arrays.stream(v.getMethods()).filter(x->x.getName().equals("loadingOverlay")).findFirst().orElse(null);
    }
   }
+  gameLayerReady=true;
   if(overlayFactory==null)media.log("CLIENT_OVERLAY_MISSING: early media will stop at resource overlay");
  }
  @SuppressWarnings("unchecked")
  public <T> Supplier<T> loadingOverlay(Supplier<?> mc,Supplier<?> ri,Consumer<Optional<Throwable>> finish,boolean fade){
   if(fallback!=null)return fallback.loadingOverlay(mc,ri,finish,fade);
+  var completionStarted=new java.util.concurrent.atomic.AtomicBoolean();
+  Consumer<Optional<Throwable>> guardedFinish=result->{completionStarted.set(true);finish.accept(result);};
+  Function<Throwable,RuntimeException> propagate=error->{
+   Throwable cause=error instanceof InvocationTargetException target&&target.getCause()!=null?target.getCause():error;
+   if(cause instanceof Error fatal)throw fatal;
+   return cause instanceof RuntimeException runtime?runtime:new IllegalStateException("Loading overlay creation failed",cause);
+  };
+  Supplier<Supplier<T>> stockOverlay=()->{
+   try{return (Supplier<T>)vanillaFactory.invoke(null,mc,ri,finish,fade);}
+   catch(Throwable failure){throw propagate.apply(failure);}
+  };
   try{
    handingOff=true;
-   if(overlayFactory!=null&&!media.stopped)return (Supplier<T>)overlayFactory.invoke(null,mc,ri,finish,media,renderer);
+   if(overlayFactory!=null&&!media.stopped){
+    Supplier<T> custom=(Supplier<T>)overlayFactory.invoke(null,mc,ri,guardedFinish,media,renderer);
+    if(media.nativeWindowFade)enableNativeFade();
+    // Only construction is guarded. Later render/reload/finish exceptions keep
+    // their original path and cannot cause a second completion callback.
+    return ()->{
+     try{return Objects.requireNonNull(custom.get(),"Loading overlay supplier returned null");}
+     catch(Throwable failure){
+      if(completionStarted.get())throw propagate.apply(failure);
+      if(media!=null)media.log("OVERLAY_CREATION_FALLBACK "+failure);
+      stopMediaForStock();
+      return stockOverlay.get().get();
+     }
+    };
+   }
    stopMediaForStock();
-   return (Supplier<T>)vanillaFactory.invoke(null,mc,ri,finish,fade);
-  }catch(Throwable e){
-   if(media!=null)media.log("OVERLAY_FALLBACK "+e);if(renderer!=null)stopMediaForStock();
-   try{return (Supplier<T>)vanillaFactory.invoke(null,mc,ri,finish,fade);}
-   catch(Throwable failure){throw new IllegalStateException("Stock overlay unavailable",failure);}
+   return stockOverlay.get();
+  }catch(Throwable failure){
+   if(completionStarted.get())throw propagate.apply(failure);
+   if(media!=null)media.log("OVERLAY_FALLBACK "+failure);
+   if(renderer!=null)stopMediaForStock();
+   return stockOverlay.get();
   }
  }
 }

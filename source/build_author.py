@@ -1,11 +1,11 @@
 from pathlib import Path
 import argparse,subprocess,zipfile,sys,json,uuid
 sys.stdout.reconfigure(encoding="utf-8")
-a=argparse.ArgumentParser();a.add_argument("--jdk",required=True);a.add_argument("--libraries",required=True);a.add_argument("--ffmpeg-dir",required=True);a.add_argument("--portable",action="store_true");args=a.parse_args()
+a=argparse.ArgumentParser();a.add_argument("--jdk",default="D:/workspace/ShangHanEarlyLoading/tools/jdk17/jdk-17.0.15+6");a.add_argument("--libraries",default="D:/.minecraft/libraries");a.add_argument("--ffmpeg-dir",default="D:/workspace/ShangHanEarlyLoading/tools/ffmpeg/ffmpeg-9.0.2-essentials_build");a.add_argument("--portable",action="store_true");args=a.parse_args()
 project=Path(__file__).resolve().parent.parent;profile=json.loads((project/"release.json").read_text(encoding="utf-8"));version=profile["version"]
 classes=project/"work"/("author-classes-"+uuid.uuid4().hex);classes.mkdir(parents=True,exist_ok=True)
 gson=next(Path(args.libraries).rglob("gson-2.10.1.jar"));jdk=Path(args.jdk)
-r=subprocess.run([str(jdk/"bin/javac.exe"),"-J-Dfile.encoding=UTF-8","-J-Duser.language=en","-encoding","UTF-8","--release","17","-classpath",str(gson),"-d",str(classes),str(project/"source/author/AuthorTool.java")],capture_output=True)
+r=subprocess.run([str(jdk/"bin/javac.exe"),"-J-Dfile.encoding=UTF-8","-J-Duser.language=en","-encoding","UTF-8","--release","17","-classpath",str(gson),"-d",str(classes),str(project/"source/author/AuthorTool.java"),str(project/"source/router/java/shanghan/routing/RuntimeRouter.java")],capture_output=True)
 if r.returncode:raise SystemExit(r.stderr.decode("utf-8",errors="replace"))
 jar=project/"dist"/f"ForgeLoadingAuthor-{version}.jar"
 with zipfile.ZipFile(jar,"w",zipfile.ZIP_DEFLATED) as z:

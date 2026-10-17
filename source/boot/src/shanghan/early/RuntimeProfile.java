@@ -1,5 +1,9 @@
 package shanghan.early;
-import com.google.gson.*;import java.io.*;import java.nio.charset.StandardCharsets;
+import com.google.gson.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import shanghan.routing.RuntimeRouter;
+/** Distribution identity is separate from runtime routing; patch builds are not a whitelist. */
 public final class RuntimeProfile {
  private static final JsonObject PROFILE=load();
  private static JsonObject load(){
@@ -12,11 +16,7 @@ public final class RuntimeProfile {
  public static void requireClient(InputStream in)throws IOException{
   if(in==null)throw new IllegalStateException("Missing client runtime profile");
   JsonObject client=JsonParser.parseString(new String(in.readAllBytes(),StandardCharsets.UTF_8)).getAsJsonObject();
-  if(!version().equals(client.get("version").getAsString())||!PROFILE.get("minecraft").equals(client.get("minecraft")))throw new IllegalStateException("Bootstrap/client versions do not match; stock Forge overlay will be used");
+  if(!PROFILE.equals(client))throw new IllegalStateException("Bootstrap/client runtime profiles do not match");
  }
- public static boolean supports(String minecraft,String forge){
-  if(!PROFILE.get("minecraft").getAsString().equals(minecraft))return false;
-  for(JsonElement version:PROFILE.getAsJsonArray("forgeBuilds"))if(version.getAsString().equals(forge))return true;
-  return false;
- }
+ public static boolean supports(String minecraft,String forge){return RuntimeRouter.select(minecraft,forge)!=null;}
 }
